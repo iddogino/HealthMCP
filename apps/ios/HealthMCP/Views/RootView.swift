@@ -41,9 +41,9 @@ struct OnboardingView: View {
                 case 1:
                     Eyebrow(text: "Only you hold the key")
                     Text("Make it yours.\nKeep it safe.").font(.largeTitle.bold()).tracking(-1)
-                    Text("Save this private key in your password manager. Your agent will use it in its secure sandbox to decrypt your data.").foregroundStyle(Brand.secondary)
+                    Text("Save a copy of this private key in your password manager. Your agent will use it in its secure sandbox to decrypt your data.").foregroundStyle(Brand.secondary)
                     Panel { if model.keyVisible { PrivateKeyView(key: model.privateKey) } else { Button("Reveal private key") { Task { await model.revealKey() } }.buttonStyle(SecondaryButton()) } }
-                    Text("We cannot recover this key. Never paste it into a website or ordinary chat.").font(.subheadline).foregroundStyle(Brand.secondary)
+                    Text("You can reveal this key again in Settings → Reveal private key. Never paste it into a website or ordinary chat.").font(.subheadline).foregroundStyle(Brand.secondary)
                     Toggle("I have saved my private key", isOn: $model.keySaved).tint(Brand.accent)
                     Button("Continue") { model.acceptKey() }.buttonStyle(PrimaryButton()).disabled(!model.keySaved).opacity(model.keySaved ? 1 : 0.4)
                 case 2:

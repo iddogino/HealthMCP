@@ -285,6 +285,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     private func configureDemo() {
         onboarded = !ProcessInfo.processInfo.arguments.contains("-onboarding")
         onboardingStep = 0; privateKey = "0123456789ABCDEF" + String(try! HealthCrypto.checksum("0123456789ABCDEF"))
+        if ProcessInfo.processInfo.arguments.contains("-onboarding-key") { onboarded = false; onboardingStep = 1; keyVisible = true }
         lastSyncedAt = Date().addingTimeInterval(-240); sampleCount = 24836; cloudChunks = 186; cloudBytes = 1843200; seriesCount = 24
         var run = SyncRun(trigger: "Health data changed"); run.startedAt = Date().addingTimeInterval(-285); run.finishedAt = Date().addingTimeInterval(-240); run.status = "complete"; run.stage = "Your encrypted cache is up to date"; run.uploadedChunks = 18; run.totalChunks = 18; run.uploadedBytes = 182400; run.progress = 1
         history = [run]; pushStatus = "Device registered"

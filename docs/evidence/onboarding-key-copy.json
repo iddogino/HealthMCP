@@ -1,0 +1,9 @@
+{
+  "build": "6",
+  "version": "1.0.0",
+  "debug_build_passed": true,
+  "release_archive_export_passed": true,
+  "onboarding_key_screen_visually_verified": true,
+  "uses_synthetic_key_for_visual_check": true,
+  "copy": "You can reveal this key again in Settings → Reveal private key."
+}
