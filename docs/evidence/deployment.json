@@ -1,8 +1,8 @@
 {
   "version": "1.0.0",
-  "build": "6",
+  "build": "7",
   "app_id": "6809625249",
-  "build_id": "133d10c9-d734-4239-bbe3-1308208a882f",
+  "build_id": "3a305818-8d3d-4f08-8668-1b4e45454d67",
   "processing_state": "VALID",
   "internal_build_state": "IN_BETA_TESTING",
   "healthkit_entitlement": true,

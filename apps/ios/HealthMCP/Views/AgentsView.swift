@@ -4,6 +4,8 @@ struct AgentsView: View {
     @EnvironmentObject var model: AppModel
     @State private var toRevoke: AgentConnection?
     @State private var copied = false
+    @FocusState private var pairingCodeFocused: Bool
+    @State private var pairingFieldFrame = CGRect.zero
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -22,8 +24,11 @@ struct AgentsView: View {
                         VStack(alignment: .leading, spacing: 18) {
                             Eyebrow(text: "02 / Enter the pairing code")
                             TextField("000000", text: $model.pairingCode).font(.system(size: 36, weight: .medium, design: .monospaced)).tracking(8).keyboardType(.numberPad).textContentType(.oneTimeCode).multilineTextAlignment(.center).padding(16).background(Brand.background, in: RoundedRectangle(cornerRadius: 16)).accessibilityLabel("Six-digit pairing code").accessibilityIdentifier("pairing-code")
+                                .focused($pairingCodeFocused)
+                                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pairingFieldFrame = $0 }
                                 .onChange(of: model.pairingCode) { _, value in model.pairingCode = String(value.filter { $0.isASCII && $0.isNumber }.prefix(6)) }
-                            Button { Task { await model.previewPairing() } } label: { HStack { if model.busy { ProgressView().tint(Brand.background) }; Text("Review connection"); Image(systemName: "arrow.right") } }.buttonStyle(PrimaryButton()).disabled(model.pairingCode.count != 6 || model.busy).opacity(model.pairingCode.count == 6 ? 1 : 0.45)
+                                .onSubmit { reviewConnection() }
+                            Button { reviewConnection() } label: { HStack { if model.busy { ProgressView().tint(Brand.background) }; Text("Review connection"); Image(systemName: "arrow.right") } }.buttonStyle(PrimaryButton()).disabled(model.pairingCode.count != 6 || model.busy).opacity(model.pairingCode.count == 6 ? 1 : 0.45)
                         }
                     }
                     HStack { Eyebrow(text: "Connected agents"); Spacer(); Text(model.connections.count.formatted()).font(.subheadline.monospacedDigit()).foregroundStyle(Brand.secondary) }
@@ -32,10 +37,21 @@ struct AgentsView: View {
                     Link("Connection guide", destination: URL(string: "https://healthmcp.cc/connect")!).font(.headline).foregroundStyle(Brand.accent).padding(.bottom, 20)
                 }.padding(24)
             }.healthBackground().navigationTitle("Agents").navigationBarTitleDisplayMode(.inline)
+                .scrollDismissesKeyboard(.interactively)
+                .contentShape(Rectangle())
+                .simultaneousGesture(SpatialTapGesture(coordinateSpace: .global).onEnded { tap in
+                    if !pairingFieldFrame.contains(tap.location) { pairingCodeFocused = false }
+                })
+                .onDisappear { pairingCodeFocused = false }
                 .refreshable { await model.refreshStatus() }
-                .sheet(item: $model.pairingPreview) { preview in PairingConsentView(preview: preview) }
+                .sheet(item: $model.pairingPreview, onDismiss: { pairingCodeFocused = false }) { preview in PairingConsentView(preview: preview) }
                 .confirmationDialog("Revoke \(toRevoke?.name ?? "this agent")?", isPresented: Binding(get: { toRevoke != nil }, set: { if !$0 { toRevoke = nil } }), titleVisibility: .visible) { Button("Revoke access", role: .destructive) { if let connection = toRevoke { Task { await model.revoke(connection); toRevoke = nil } } } } message: { Text("This stops future downloads immediately. Data the agent has already downloaded cannot be recalled.") }
         }
+    }
+    private func reviewConnection() {
+        pairingCodeFocused = false
+        guard model.pairingCode.count == 6, !model.busy else { return }
+        Task { await model.previewPairing() }
     }
 }
 struct PairingConsentView: View {

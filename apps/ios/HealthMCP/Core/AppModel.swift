@@ -184,6 +184,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         } catch { if !Task.isCancelled, !isSyncing { pushStatus = "Service unavailable" } }
     }
     func previewPairing() async {
+        if isDemo { pairingPreview = PairingPreview(id: "demo-pairing", name: "Demo Agent", host: "localhost", code: pairingCode); return }
         busy = true; defer { busy = false }
         do {
             guard let result = try await api?.json("POST", "/v1/pair/preview", ["code": pairingCode]), let id = result["pairing_id"] as? String, let name = result["client_name"] as? String, let host = result["redirect_host"] as? String else { throw HealthMCPError.message("Pairing could not be verified.") }
@@ -192,6 +193,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     }
     func approvePairing() async {
         guard let preview = pairingPreview else { return }; busy = true; defer { busy = false }
+        if isDemo { connections = [AgentConnection(id: preview.id, name: preview.name, createdAt: Date())]; pairingPreview = nil; pairingCode = ""; return }
         do { _ = try await api?.json("POST", "/v1/pair/approve", ["code": preview.code, "pairing_id": preview.id]); pairingPreview = nil; pairingCode = ""; await refreshStatus() } catch { self.error = error.localizedDescription }
     }
     func revoke(_ connection: AgentConnection) async {
@@ -286,6 +288,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         onboarded = !ProcessInfo.processInfo.arguments.contains("-onboarding")
         onboardingStep = 0; privateKey = "0123456789ABCDEF" + String(try! HealthCrypto.checksum("0123456789ABCDEF"))
         if ProcessInfo.processInfo.arguments.contains("-onboarding-key") { onboarded = false; onboardingStep = 1; keyVisible = true }
+        if ProcessInfo.processInfo.arguments.contains("-ui-pairing") { selectedTab = 1 }
         lastSyncedAt = Date().addingTimeInterval(-240); sampleCount = 24836; cloudChunks = 186; cloudBytes = 1843200; seriesCount = 24
         var run = SyncRun(trigger: "Health data changed"); run.startedAt = Date().addingTimeInterval(-285); run.finishedAt = Date().addingTimeInterval(-240); run.status = "complete"; run.stage = "Your encrypted cache is up to date"; run.uploadedChunks = 18; run.totalChunks = 18; run.uploadedBytes = 182400; run.progress = 1
         history = [run]; pushStatus = "Device registered"

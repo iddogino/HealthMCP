@@ -26,6 +26,12 @@
       "passed": 3,
       "result_bundle": "test_sim_2026-09-08T17-22-19-614Z_pid34218_7c013cae.xcresult",
       "scope": "Existing UI suite after status line and live counter fixes"
+    },
+    {
+      "build": "7",
+      "passed": 3,
+      "result_bundle": "test_sim_2026-09-08T18-29-46-656Z_pid34218_db6a9467.xcresult",
+      "scope": "Existing UI suite after pairing keyboard dismissal fix"
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "build": "7",
+  "version": "1.0.0",
+  "simulator": "iPhone 17 Pro, iOS 26.3.1",
+  "uses_synthetic_pairing_fixture": true,
+  "debug_build_passed": true,
+  "release_archive_export_passed": true,
+  "manual_checks": {
+    "outside_tap_dismisses_visible_keyboard": true,
+    "code_is_preserved_after_outside_tap": true,
+    "tapping_field_can_focus_and_edit_again": true,
+    "review_connection_dismisses_visible_keyboard": true,
+    "cancel_keeps_keyboard_dismissed_and_preserves_code": true,
+    "approve_keeps_keyboard_dismissed_and_clears_code": true,
+    "approved_demo_agent_appears_in_connections": true
+  },
+  "ui_tests": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "result_bundle": "test_sim_2026-09-08T18-29-46-656Z_pid34218_db6a9467.xcresult"
+  }
+}

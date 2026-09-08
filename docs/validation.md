@@ -2,7 +2,7 @@
 
 Last updated September 8, 2026 (Pacific time).
 
-The deployed service and website have passed their automated integration checks. Native validation includes build 5 on the owner's iPhone 17 Pro. Build 6 is available in the approved internal TestFlight group. **The real HealthKit → encryption → Cloudflare → MCP → on-device decryption comparison passes while the first backfill is still running.** Real APNs receipt also passed with the app open. Full-history completion, background completion, and the force-quit visible fallback remain separate open checks.
+The deployed service and website have passed their automated integration checks. Native validation includes build 5 on the owner's iPhone 17 Pro. Build 7 is available in the approved internal TestFlight group. **The real HealthKit → encryption → Cloudflare → MCP → on-device decryption comparison passes while the first backfill is still running.** Real APNs receipt also passed with the app open. Full-history completion, background completion, and the force-quit visible fallback remain separate open checks.
 
 ## Evidence
 
@@ -17,11 +17,12 @@ The deployed service and website have passed their automated integration checks.
 | Live site | 13 HTTP, asset, security-header, 404, and Universal Link checks passed | `artifacts/site-check.json` |
 | Browser QA | Home, connection guide, privacy, and support navigation inspected; copy-button success state checked; no horizontal overflow at the inspected window widths | Live `healthmcp.cc` in Codex browser |
 | Dependency audit | Zero known npm vulnerabilities in root and site lockfiles at validation time | `npm audit`, `npm --prefix apps/site audit` |
-| Apple distribution | Build 1.0.0 (6) processed as VALID and IN_BETA_TESTING; internal distribution is limited to the approved owner's account | `artifacts/asc-build-6-status.json`, TestFlight access receipts |
+| Apple distribution | Build 1.0.0 (7) processed as VALID and IN_BETA_TESTING; internal distribution is limited to the approved owner's account | `artifacts/asc-build-7-status.json`, TestFlight access receipts |
 | Physical device | Incremental uploads, live OAuth/MCP round trip, real-data decryption comparison, and APNs delegate receipt confirmed | `docs/evidence/device-roundtrip.json`, `sync-performance.json` |
 | Sync performance | 100,000-record stress test kept the UI executor responsive; real phone published 42 series while full sync remained unfinished | `docs/sync-performance.md` |
 | Live dashboard | Build 5 keeps short/long action text at the same height and refreshes counters during the same sync; all three existing UI tests pass | `docs/evidence/live-dashboard.json` |
 | Onboarding key copy | Build 6 explicitly points to Settings → Reveal private key; the complete key screen was visually checked with a synthetic key | `artifacts/ui-6-key-top.jpg`, `artifacts/ui-6-key-instructions.jpg` |
+| Pairing keyboard | Build 7 dismisses the keyboard on outside tap and submission; it stays dismissed after canceling or approving consent. Field refocusing and editing still work | `docs/evidence/pairing-keyboard.json`, `artifacts/pairing-7-approved.jpg` |
 
 Build logs, result bundles, signing outputs, and device diagnostic files are deliberately ignored by Git. Xcode result bundles are under `~/Library/Developer/XcodeBuildMCP/workspaces/HealthMCP-990b23d666ee/result-bundles/` on the build Mac. Tests use synthetic fixtures and do not write fake samples into the owner's HealthKit store.
 
@@ -46,6 +47,8 @@ The development probe passed five real-device checks on September 8 at 17:07:05 
 Build 5 reserves exactly two lines for the action text, with longer text truncated, and refreshes the dashboard's server totals every five seconds while syncing. Visual checks with short and long messages showed the same card and Pause-button positions. On the physical device, between 17:24:48 and 17:25:24 UTC, the same running sync updated the UI model from 8,037,696 to 8,175,118 cache bytes and from 3,814 to 3,919 chunks without an app restart. Both responses reported 44 series. Raw count-only snapshots and simulator screenshots are in ignored artifacts; the redacted verification is checked in.
 
 Build 6 clarifies that saving a key copy is recommended and that the key can be revealed again in Settings. Simulator visual checks cover the explanation, key card, save acknowledgement, and Continue control using the existing synthetic demo key. Debug and Release builds pass. No new behavioral tests were added for this copy correction.
+
+Build 7 gives the pairing field explicit focus control, dismisses it when tapping outside the field or submitting a code, and clears focus when consent closes or the Agents screen disappears. Manual simulator checks used a visible software keyboard and a synthetic pairing fixture to verify outside taps, refocusing and editing, submission, canceling, and approval. Approval cleared the code and displayed the connected demo agent without reopening the keyboard. The existing three UI tests pass, and the Debug build and Release archive/export pass. The exported IPA retains HealthKit, background delivery, production APNs, and disabled debugger access. This UI check does not repeat the live OAuth round trip or interrupt the owner's device sync.
 
 ## Remaining physical-device checks
 
