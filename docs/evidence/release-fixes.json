@@ -19,7 +19,8 @@
     "asc_build_id": "56685527-cbbf-420f-99c9-836b7429e661",
     "processing_state": "VALID",
     "distribution": "existing internal TestFlight group only",
-    "public_submission": false
+    "public_submission": false,
+    "internal_build_state": "IN_BETA_TESTING"
   },
   "validation": {
     "node_tests": {

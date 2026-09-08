@@ -1,6 +1,6 @@
 # Release fixes — September 8, 2026
 
-The eleven code findings in the [readiness review](release-readiness-review-2026-09-08.md) have implemented fixes and regression coverage. The API and site are deployed. Build 10 (`56685527-cbbf-420f-99c9-836b7429e661`) is VALID and available in the existing internal TestFlight group, following build 9 with the same app behavior and complete third-party notices in the exported client. **Public launch remains gated on physical-device/assistant validation and submission setup below.**
+The eleven code findings in the [readiness review](release-readiness-review-2026-09-08.md) have implemented fixes and regression coverage. The API and site are deployed. Build 10 (`56685527-cbbf-420f-99c9-836b7429e661`) is VALID, has Apple’s `IN_BETA_TESTING` state, and is available in the existing internal TestFlight group, following build 9 with the same app behavior and complete third-party notices in the exported client. **Public launch remains gated on physical-device/assistant validation and submission setup below.**
 
 ## Fixes
 
