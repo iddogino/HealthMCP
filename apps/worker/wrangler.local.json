@@ -1,0 +1,50 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "healthmcp-local",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "routes": [],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "healthmcp-db",
+      "database_id": "48f345cb-4704-4095-bc2e-42853ea91dd4",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BLOBS",
+      "bucket_name": "healthmcp-encrypted"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "cb95c9974c6d4d5496efed51a3ca90a7"
+    }
+  ],
+  "vars": {
+    "PUBLIC_ORIGIN": "http://localhost:8787",
+    "APP_TEAM_ID": "HL9SP7TJ3J",
+    "APP_BUNDLE_ID": "cc.healthmcp.app",
+    "BLOB_SIGNING_SECRET": "local-e2e-only-public-secret-0123456789"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "limits": {
+    "cpu_ms": 30000
+  },
+  "dev": {
+    "host": "localhost:8787",
+    "port": 8787,
+    "upstream_protocol": "http"
+  }
+}

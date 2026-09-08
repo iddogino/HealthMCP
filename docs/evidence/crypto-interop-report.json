@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checks": [
+    "Swift encrypted payload decrypted by Node",
+    "Swift encrypted payload decrypted by Python",
+    "Node encrypted payload decrypted by Python"
+  ],
+  "completed_at": "2026-09-08T00:58:30.826Z"
+}

@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "build": "3",
+  "app_id": "6809625249",
+  "build_id": "1b78942c-dd5a-4359-9705-0fe8a31f044c",
+  "processing_state": "VALID",
+  "internal_build_state": "IN_BETA_TESTING",
+  "healthkit_entitlement": true,
+  "apns_environment": "production",
+  "debugging_allowed": false,
+  "api_worker_version": "71159a39-8332-472e-a248-675e5c77718a",
+  "site_worker_version": "e1993e19-ed84-4a76-b98b-39492d2f6ad9"
+}

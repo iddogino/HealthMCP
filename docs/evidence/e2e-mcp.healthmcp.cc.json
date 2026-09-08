@@ -1,0 +1,29 @@
+{
+  "base": "https://mcp.healthmcp.cc",
+  "completed_at": "2026-09-08T01:37:57.616Z",
+  "checks": [
+    "Worker + D1 health",
+    "OAuth discovery and unauthenticated MCP rejection",
+    "P-256 device registration and proof of possession",
+    "Atomic replay rejection",
+    "Cross-user device isolation",
+    "Encrypted daily, monthly, workout, profile, summary and key-check uploads",
+    "Plaintext and path traversal rejection",
+    "Consent pairing, browser binding, PKCE and token exchange",
+    "Official MCP SDK initialize and tool discovery",
+    "Local key-check decryption",
+    "Sandbox decryption, gzip, source values, and AAD authentication",
+    "All read tools, exact range resolution, and reference resources",
+    "Honest best-effort sync response when push is unavailable",
+    "Key-check and profile uploads preserve the push fallback until health data arrives",
+    "Sync request throttle survives completed uploads",
+    "OAuth refresh-token flow",
+    "HealthKit deletion propagation",
+    "Disabling an optional series removes its chunks and catalog",
+    "Immediate connection and signed-download revocation",
+    "Cache rotation clears catalog and advances generation",
+    "APNs sandbox endpoint accepts the request format and rejects a synthetic device token",
+    "APNs production endpoint accepts the request format and rejects a synthetic device token",
+    "Synthetic test accounts and encrypted data cleaned up"
+  ]
+}

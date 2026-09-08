@@ -1,0 +1,10 @@
+{
+  "source": "XcodeBuildMCP test_sim",
+  "completed_at": "2026-09-08T01:29:29Z",
+  "configuration": "Debug",
+  "simulator": "iPhone 17 Pro, iOS 26.3.1",
+  "passed": 12,
+  "failed": 0,
+  "skipped": 0,
+  "result_bundle": "test_sim_2026-09-08T01-28-44-841Z_pid23677_ed54be1f.xcresult"
+}

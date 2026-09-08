@@ -1,0 +1,12 @@
+{
+  "key": "0123456789ABCDEFK",
+  "path": "u_00000000-0000-4000-8000-000000000001/check",
+  "derived_key_hex": "8c767d0706403dc3879cbbf8bbef46569467d7bdb13de64cc1ef61ac4517bcca",
+  "envelope": {
+    "v": 1,
+    "alg": "A256GCM",
+    "kdf": "sha256",
+    "iv": "AAECAwQFBgcICQoL",
+    "ct": "UT6mvK1F4gBmYIBHNBIKShjxp4rUsi5fk3dHh406/ZtNtkS/kAborQ=="
+  }
+}

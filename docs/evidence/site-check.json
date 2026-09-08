@@ -1,0 +1,19 @@
+{
+  "completed_at": "2026-09-08T01:31:49.420Z",
+  "passed": true,
+  "checks": [
+    "/ prerendered HTML and security headers",
+    "/connect prerendered HTML and security headers",
+    "/privacy prerendered HTML and security headers",
+    "/support prerendered HTML and security headers",
+    "/pair prerendered HTML and security headers",
+    "Universal-link app association",
+    "/decrypt.mjs available",
+    "/decrypt.py available",
+    "/ios-overview.png available",
+    "/favicon.svg available",
+    "/robots.txt available",
+    "/sitemap.xml available",
+    "Unknown pages return 404"
+  ]
+}

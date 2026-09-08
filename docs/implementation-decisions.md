@@ -1,0 +1,13 @@
+# V1 implementation decisions
+
+The source specification is preserved in `health-mcp-spec.md`. This document resolves ambiguous wire details; it does not change the source document.
+
+- Keys contain 16 uniformly random Crockford base32 symbols plus the standard modulo-37 checksum (`0123456789ABCDEFGHJKMNPQRSTVWXYZ*~$=U`). Normalize ASCII whitespace and hyphens away and uppercase, validate all 17 symbols, then include all 17 in SHA-256(`healthmcp/v1:` + normalizedKey). No I/L/O aliases are accepted. The random secret has **80 bits of entropy**, regardless of the AES-256 cipher's key size.
+- Every payload is gzip-compressed UTF-8 JSON, including `check.enc`, which contains the JSON string `"ok"`. The check AAD is `<user_id>/check`. All other AAD is the logical object key without `.enc`; physical R2 keys include an internal cache generation that is not part of AAD. Dates and chunk assignment use UTC, so device timezone changes cannot move objects unexpectedly. Exact sample time filtering belongs in the agent sandbox.
+- Device signatures are P-256 ECDSA/SHA-256, in 64-byte IEEE P1363 (`r || s`) format. The signed UTF-8 message is `METHOD\n/path?query\nunix_seconds\nnonce\nhex_sha256(body)`. The device sends `X-User-ID`, `X-Timestamp`, `X-Nonce`, `X-Signature`. Five-minute skew and atomically claimed nonces prevent replay. Registration proves possession of the supplied public key using the same signature format.
+- HealthKit's per-type read authorization is intentionally opaque. Empty data is shown as unavailable rather than falsely claiming permission was denied. HealthKit is requested read-only.
+- ECG voltage data and GPS routes have explicit controls so real-device payload size can be measured before enabling them broadly. All listed type groups are supported; sensitive optional groups remain opt-in.
+- The public site and MCP service deploy directly to the user's Cloudflare account with Wrangler, as requested. The Sites scaffold is used for the marketing frontend; its managed hosting flow is superseded by the explicit Cloudflare deployment requirement.
+- Recovery means a new device identity and fresh export. Rotation invalidates connections and signed download links, clears the encrypted cache, and re-exports with the new locally held key. Apple Health remains the source of truth.
+
+- APNs uses separate topic-specific sandbox and production keys, following Apple’s [token-based APNs guidance](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns). The health payload and decryption key are never included in push notifications.

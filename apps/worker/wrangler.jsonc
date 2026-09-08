@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "healthmcp-api",
+  "main": "src/index.ts",
+  "account_id": "5f22bc2f89d05868489db974851f2bd1",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "workers_dev": false,
+  "routes": [{"pattern": "mcp.healthmcp.cc", "custom_domain": true}],
+  "d1_databases": [{"binding":"DB","database_name":"healthmcp-db","database_id":"48f345cb-4704-4095-bc2e-42853ea91dd4","migrations_dir":"migrations"}],
+  "r2_buckets": [{"binding":"BLOBS","bucket_name":"healthmcp-encrypted"}],
+  "kv_namespaces": [{"binding":"OAUTH_KV","id":"cb95c9974c6d4d5496efed51a3ca90a7"}],
+  "vars": {"PUBLIC_ORIGIN":"https://mcp.healthmcp.cc","APP_TEAM_ID":"HL9SP7TJ3J","APP_BUNDLE_ID":"cc.healthmcp.app","APNS_TEAM_ID":"HL9SP7TJ3J","APNS_KEY_ID":"4P92YGPR7L","APNS_SANDBOX_KEY_ID":"H2F7LMNCSX"},
+  "triggers": {"crons":["* * * * *"]},
+  "observability": {"enabled":true,"head_sampling_rate":0.1},
+  "limits": {"cpu_ms":30000}
+}

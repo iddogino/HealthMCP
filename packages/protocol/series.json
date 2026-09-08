@@ -1,0 +1,546 @@
+[
+  {
+    "id": "heart_rate",
+    "hk": "HeartRate",
+    "unit": "count/min",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "resting_heart_rate",
+    "hk": "RestingHeartRate",
+    "unit": "count/min",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "walking_hr_avg",
+    "hk": "WalkingHeartRateAverage",
+    "unit": "count/min",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "hr_recovery_1min",
+    "hk": "HeartRateRecoveryOneMinute",
+    "unit": "count/min",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "hrv_sdnn",
+    "hk": "HeartRateVariabilitySDNN",
+    "unit": "ms",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "blood_oxygen",
+    "hk": "OxygenSaturation",
+    "unit": "%",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "respiratory_rate",
+    "hk": "RespiratoryRate",
+    "unit": "count/min",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "body_temperature",
+    "hk": "BodyTemperature",
+    "unit": "°C",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "wrist_temperature",
+    "hk": "AppleSleepingWristTemperature",
+    "unit": "°C",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "blood_pressure_systolic",
+    "hk": "BloodPressureSystolic",
+    "unit": "mmHg",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "blood_pressure_diastolic",
+    "hk": "BloodPressureDiastolic",
+    "unit": "mmHg",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "blood_glucose",
+    "hk": "BloodGlucose",
+    "unit": "mg/dL",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "vo2_max",
+    "hk": "VO2Max",
+    "unit": "mL/kg/min",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "body_mass",
+    "hk": "BodyMass",
+    "unit": "kg",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "body_fat",
+    "hk": "BodyFatPercentage",
+    "unit": "%",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "lean_body_mass",
+    "hk": "LeanBodyMass",
+    "unit": "kg",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "bmi",
+    "hk": "BodyMassIndex",
+    "unit": "count",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "height",
+    "hk": "Height",
+    "unit": "m",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "waist_circumference",
+    "hk": "WaistCircumference",
+    "unit": "m",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "walking_speed",
+    "hk": "WalkingSpeed",
+    "unit": "m/s",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "walking_step_length",
+    "hk": "WalkingStepLength",
+    "unit": "m",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "walking_asymmetry",
+    "hk": "WalkingAsymmetryPercentage",
+    "unit": "%",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "walking_double_support",
+    "hk": "WalkingDoubleSupportPercentage",
+    "unit": "%",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "stair_ascent_speed",
+    "hk": "StairAscentSpeed",
+    "unit": "m/s",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "stair_descent_speed",
+    "hk": "StairDescentSpeed",
+    "unit": "m/s",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "six_minute_walk",
+    "hk": "SixMinuteWalkTestDistance",
+    "unit": "m",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "running_power",
+    "hk": "RunningPower",
+    "unit": "W",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "running_speed",
+    "hk": "RunningSpeed",
+    "unit": "m/s",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "running_stride_length",
+    "hk": "RunningStrideLength",
+    "unit": "m",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "running_vertical_oscillation",
+    "hk": "RunningVerticalOscillation",
+    "unit": "cm",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "running_ground_contact",
+    "hk": "RunningGroundContactTime",
+    "unit": "ms",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "cycling_power",
+    "hk": "CyclingPower",
+    "unit": "W",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "cycling_cadence",
+    "hk": "CyclingCadence",
+    "unit": "rpm",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "cycling_speed",
+    "hk": "CyclingSpeed",
+    "unit": "m/s",
+    "chunk": "day",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "cycling_ftp",
+    "hk": "CyclingFunctionalThresholdPower",
+    "unit": "W",
+    "chunk": "month",
+    "group": "default",
+    "kind": "quantity"
+  },
+  {
+    "id": "basal_body_temperature",
+    "hk": "BasalBodyTemperature",
+    "unit": "°C",
+    "chunk": "month",
+    "group": "reproductive",
+    "kind": "quantity"
+  },
+  {
+    "id": "environmental_audio",
+    "hk": "EnvironmentalAudioExposure",
+    "unit": "dBASPL",
+    "chunk": "day",
+    "group": "audio",
+    "kind": "quantity"
+  },
+  {
+    "id": "headphone_audio",
+    "hk": "HeadphoneAudioExposure",
+    "unit": "dBASPL",
+    "chunk": "day",
+    "group": "audio",
+    "kind": "quantity"
+  },
+  {
+    "id": "steps",
+    "hk": "StepCount",
+    "unit": "count",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "distance_walking_running",
+    "hk": "DistanceWalkingRunning",
+    "unit": "m",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "distance_cycling",
+    "hk": "DistanceCycling",
+    "unit": "m",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "distance_swimming",
+    "hk": "DistanceSwimming",
+    "unit": "m",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "flights_climbed",
+    "hk": "FlightsClimbed",
+    "unit": "count",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "active_energy",
+    "hk": "ActiveEnergyBurned",
+    "unit": "kcal",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "basal_energy",
+    "hk": "BasalEnergyBurned",
+    "unit": "kcal",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "exercise_minutes",
+    "hk": "AppleExerciseTime",
+    "unit": "min",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "stand_minutes",
+    "hk": "AppleStandTime",
+    "unit": "min",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "time_in_daylight",
+    "hk": "TimeInDaylight",
+    "unit": "min",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "physical_effort",
+    "hk": "PhysicalEffort",
+    "unit": "kcal/hr/kg",
+    "chunk": "day",
+    "group": "default",
+    "kind": "cumulative"
+  },
+  {
+    "id": "dietary_energy",
+    "hk": "DietaryEnergyConsumed",
+    "unit": "kcal",
+    "chunk": "day",
+    "group": "nutrition",
+    "kind": "cumulative"
+  },
+  {
+    "id": "dietary_carbs",
+    "hk": "DietaryCarbohydrates",
+    "unit": "g",
+    "chunk": "day",
+    "group": "nutrition",
+    "kind": "cumulative"
+  },
+  {
+    "id": "dietary_protein",
+    "hk": "DietaryProtein",
+    "unit": "g",
+    "chunk": "day",
+    "group": "nutrition",
+    "kind": "cumulative"
+  },
+  {
+    "id": "dietary_fat",
+    "hk": "DietaryFatTotal",
+    "unit": "g",
+    "chunk": "day",
+    "group": "nutrition",
+    "kind": "cumulative"
+  },
+  {
+    "id": "dietary_water",
+    "hk": "DietaryWater",
+    "unit": "mL",
+    "chunk": "day",
+    "group": "nutrition",
+    "kind": "cumulative"
+  },
+  {
+    "id": "dietary_caffeine",
+    "hk": "DietaryCaffeine",
+    "unit": "mg",
+    "chunk": "day",
+    "group": "nutrition",
+    "kind": "cumulative"
+  },
+  {
+    "id": "sleep",
+    "hk": "SleepAnalysis",
+    "unit": "category",
+    "chunk": "day",
+    "group": "default",
+    "kind": "category"
+  },
+  {
+    "id": "stand_hour",
+    "hk": "AppleStandHour",
+    "unit": "category",
+    "chunk": "day",
+    "group": "default",
+    "kind": "category"
+  },
+  {
+    "id": "mindful_session",
+    "hk": "MindfulSession",
+    "unit": "category",
+    "chunk": "month",
+    "group": "default",
+    "kind": "category"
+  },
+  {
+    "id": "heart_rate_events",
+    "hk": "HighHeartRateEvent",
+    "unit": "category",
+    "chunk": "month",
+    "group": "default",
+    "kind": "category"
+  },
+  {
+    "id": "low_cardio_fitness_event",
+    "hk": "LowCardioFitnessEvent",
+    "unit": "category",
+    "chunk": "month",
+    "group": "default",
+    "kind": "category"
+  },
+  {
+    "id": "menstrual_flow",
+    "hk": "MenstrualFlow",
+    "unit": "category",
+    "chunk": "month",
+    "group": "reproductive",
+    "kind": "category"
+  },
+  {
+    "id": "reproductive_events",
+    "hk": "",
+    "unit": "category",
+    "chunk": "month",
+    "group": "reproductive",
+    "kind": "category"
+  },
+  {
+    "id": "symptoms",
+    "hk": "",
+    "unit": "category",
+    "chunk": "month",
+    "group": "symptoms",
+    "kind": "category"
+  },
+  {
+    "id": "workouts",
+    "hk": "Workout",
+    "unit": "workout",
+    "chunk": "record",
+    "group": "default",
+    "kind": "workout"
+  },
+  {
+    "id": "ecg",
+    "hk": "Electrocardiogram",
+    "unit": "µV",
+    "chunk": "record",
+    "group": "default",
+    "kind": "waveform"
+  },
+  {
+    "id": "activity_rings",
+    "hk": "ActivitySummary",
+    "unit": "summary",
+    "chunk": "month",
+    "group": "default",
+    "kind": "summary"
+  },
+  {
+    "id": "daily_summary",
+    "hk": "",
+    "unit": "summary",
+    "chunk": "month",
+    "group": "default",
+    "kind": "summary"
+  },
+  {
+    "id": "profile",
+    "hk": "",
+    "unit": "profile",
+    "chunk": "single",
+    "group": "default",
+    "kind": "profile"
+  }
+]

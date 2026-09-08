@@ -1,0 +1,9 @@
+{
+  "$schema":"../../node_modules/wrangler/config-schema.json",
+  "name":"healthmcp-site",
+  "account_id":"5f22bc2f89d05868489db974851f2bd1",
+  "compatibility_date":"2026-09-07",
+  "workers_dev":false,
+  "routes":[{"pattern":"healthmcp.cc","custom_domain":true}],
+  "assets":{"directory":"./dist/client","html_handling":"auto-trailing-slash","not_found_handling":"404-page"}
+}

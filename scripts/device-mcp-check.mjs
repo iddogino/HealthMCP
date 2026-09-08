@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,chmodSync} from 'node:fs';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+const file=process.argv[2];if(!file)throw new Error('Pass the locally copied development-only Validation/session.json path.');
+chmodSync(file,0o600);const session=JSON.parse(readFileSync(file,'utf8'));
+assert.equal(session.base_url,'https://mcp.healthmcp.cc');
+const client=new Client({name:'Health MCP device test runner',version:'1.0.0'});
+await client.connect(new StreamableHTTPClientTransport(new URL(session.base_url+'/mcp'),{requestInit:{headers:{Authorization:'Bearer '+session.access_token}}}));
+const data=result=>result.structuredContent??JSON.parse(result.content[0].text);
+const catalog=data(await client.callTool({name:'list_series',arguments:{}}));
+assert.ok(catalog.series.length>0);assert.ok(catalog.check_url);
+const output={checked_at:new Date().toISOString(),series_count:catalog.series.length,last_synced_at:catalog.last_synced_at};
+if(process.argv.includes('--request-sync'))output.sync=data(await client.callTool({name:'request_sync',arguments:{}}));
+writeFileSync('artifacts/device-mcp-check.json',JSON.stringify(output,null,2));
+console.log(JSON.stringify(output,null,2));
+await client.close();

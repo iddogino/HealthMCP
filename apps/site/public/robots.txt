@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://healthmcp.cc/sitemap.xml

@@ -1,0 +1,39 @@
+{
+  "name": "health-mcp",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "workspaces": [
+    "apps/worker",
+    "packages/protocol"
+  ],
+  "scripts": {
+    "dev": "wrangler dev --config apps/worker/wrangler.local.json",
+    "dev:site": "npm --prefix apps/site run dev",
+    "build": "npm run typecheck && npm --prefix apps/site run build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:e2e": "node --import tsx scripts/e2e.ts",
+    "deploy:worker": "wrangler deploy --config apps/worker/wrangler.jsonc",
+    "deploy:site": "npm --prefix apps/site run build && wrangler deploy --config apps/site/wrangler.site.jsonc",
+    "ios:generate": "cd apps/ios && xcodegen generate",
+    "test:interop": "node scripts/crypto-interop.mjs",
+    "sync:references": "node scripts/sync-reference-scripts.mjs",
+    "typecheck:site": "tsc --noEmit -p apps/site/tsconfig.json"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "0.10.3",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260907.1",
+    "@types/node": "^22",
+    "tsx": "^4",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.129.1"
+  }
+}

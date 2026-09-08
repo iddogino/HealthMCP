@@ -1,0 +1,56 @@
+name: HealthMCP
+options:
+  bundleIdPrefix: cc.healthmcp
+  deploymentTarget:
+    iOS: '18.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    DEVELOPMENT_TEAM: HL9SP7TJ3J
+    MARKETING_VERSION: '1.0.0'
+    CURRENT_PROJECT_VERSION: '3'
+    TARGETED_DEVICE_FAMILY: '1'
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  HealthMCP:
+    type: application
+    platform: iOS
+    sources: [HealthMCP]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cc.healthmcp.app
+        INFOPLIST_FILE: HealthMCP/Info.plist
+        CODE_SIGN_ENTITLEMENTS: HealthMCP/HealthMCP.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        SUPPORTS_MACCATALYST: NO
+    dependencies:
+      - sdk: HealthKit.framework
+      - sdk: BackgroundTasks.framework
+      - sdk: libz.tbd
+      - sdk: libsqlite3.tbd
+  HealthMCPTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [HealthMCPTests]
+    dependencies: [{target: HealthMCP}]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cc.healthmcp.tests
+        GENERATE_INFOPLIST_FILE: YES
+  HealthMCPUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [HealthMCPUITests]
+    dependencies: [{target: HealthMCP}]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cc.healthmcp.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  HealthMCP:
+    build:
+      targets: {HealthMCP: all}
+    test:
+      targets: [HealthMCPTests, HealthMCPUITests]
+      gatherCoverageData: true
