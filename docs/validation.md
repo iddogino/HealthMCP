@@ -2,7 +2,7 @@
 
 Last updated September 8, 2026 (Pacific time).
 
-The deployed service and website have passed their automated integration checks. Native tests pass, and build 4 is installed on the owner's iPhone 17 Pro and available in the approved internal TestFlight group. **The real HealthKit → encryption → Cloudflare → MCP → on-device decryption comparison passes while the first backfill is still running.** Real APNs receipt also passed with the app open. Full-history completion, background completion, and the force-quit visible fallback remain separate open checks.
+The deployed service and website have passed their automated integration checks. Native tests pass, and build 5 is installed on the owner's iPhone 17 Pro and available in the approved internal TestFlight group. **The real HealthKit → encryption → Cloudflare → MCP → on-device decryption comparison passes while the first backfill is still running.** Real APNs receipt also passed with the app open. Full-history completion, background completion, and the force-quit visible fallback remain separate open checks.
 
 ## Evidence
 
@@ -17,9 +17,10 @@ The deployed service and website have passed their automated integration checks.
 | Live site | 13 HTTP, asset, security-header, 404, and Universal Link checks passed | `artifacts/site-check.json` |
 | Browser QA | Home, connection guide, privacy, and support navigation inspected; copy-button success state checked; no horizontal overflow at the inspected window widths | Live `healthmcp.cc` in Codex browser |
 | Dependency audit | Zero known npm vulnerabilities in root and site lockfiles at validation time | `npm audit`, `npm --prefix apps/site audit` |
-| Apple distribution | Build 1.0.0 (4) processed as VALID and IN_BETA_TESTING; internal distribution is limited to the approved owner's account | `artifacts/asc-build-4-status.json`, TestFlight access receipts |
+| Apple distribution | Build 1.0.0 (5) processed as VALID and IN_BETA_TESTING; internal distribution is limited to the approved owner's account | `artifacts/asc-build-5-status.json`, TestFlight access receipts |
 | Physical device | Incremental uploads, live OAuth/MCP round trip, real-data decryption comparison, and APNs delegate receipt confirmed | `docs/evidence/device-roundtrip.json`, `sync-performance.json` |
 | Sync performance | 100,000-record stress test kept the UI executor responsive; real phone published 42 series while full sync remained unfinished | `docs/sync-performance.md` |
+| Live dashboard | Build 5 keeps short/long action text at the same height and refreshes counters during the same sync; all three existing UI tests pass | `docs/evidence/live-dashboard.json` |
 
 Build logs, result bundles, signing outputs, and device diagnostic files are deliberately ignored by Git. Xcode result bundles are under `~/Library/Developer/XcodeBuildMCP/workspaces/HealthMCP-990b23d666ee/result-bundles/` on the build Mac. Tests use synthetic fixtures and do not write fake samples into the owner's HealthKit store.
 
@@ -40,6 +41,8 @@ Nine unit tests cover Node/Swift wire compatibility, gzip and random nonces, sig
 The first physical backfill exposed repeated `errorDatabaseInaccessible` errors after the phone locked. Build 3 pauses on that error, preserves anchors and pending chunks, avoids repeated per-chunk errors, and restores the screen-awake setting after a foreground transition. Build 4 additionally removes the full-enumeration barrier and moves indexing, HealthKit result conversion, and serialization off the UI actor. The existing device journal was retained.
 
 The development probe passed five real-device checks on September 8 at 17:07:05 UTC. The official MCP SDK found 42 series before the global completed-sync timestamp existed. A sync request at 17:08:11 UTC was accepted by APNs and received by the app delegate at 17:08:12 UTC. The temporary validation connection was revoked, its token returned HTTP 401, and its copied session credential was deleted. No private health key or plaintext was exported.
+
+Build 5 reserves exactly two lines for the action text, with longer text truncated, and refreshes the dashboard's server totals every five seconds while syncing. Visual checks with short and long messages showed the same card and Pause-button positions. On the physical device, between 17:24:48 and 17:25:24 UTC, the same running sync updated the UI model from 8,037,696 to 8,175,118 cache bytes and from 3,814 to 3,919 chunks without an app restart. Both responses reported 44 series. Raw count-only snapshots and simulator screenshots are in ignored artifacts; the redacted verification is checked in.
 
 ## Remaining physical-device checks
 

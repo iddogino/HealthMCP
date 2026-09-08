@@ -25,6 +25,8 @@ The app commits HealthKit query anchors, sample identifiers, and dirty chunk mar
 
 The sync engine, HealthKit readers, and journal use background actors. Main-actor progress updates are throttled, prepared SQLite statements are reused, and HealthKit queries have cancellation and a 90-second timeout. Build 4 migrates the existing journal without resetting anchors or the private key. See [sync performance](sync-performance.md) for measurements and restart tests.
 
+During an active sync, the dashboard fetches current series and encrypted-cache totals every five seconds, independently of the upload pipeline. This loop reads only `/v1/status`, stops when the run ends, and is followed by a final refresh even after a manual pause. The action label reserves and caps its text at two lines so stage changes do not move the controls below it.
+
 Logical object paths remain stable as AES-GCM additional authenticated data. Physical R2 objects include a cache generation: `<user>/g<generation>/<series>/<period>.enc`. Reset/revocation gates every MCP request and download using D1. An old upload cannot overwrite the new generation after rotation.
 
 A sync request is throttled independently of upload completion to one per 15 minutes. A one-minute cron checks requests older than two minutes for a visible fallback. A health-data upload or completed sync cancels that pending fallback; a startup key-check or profile upload does not. APNs JWTs are cached across Worker cold starts for 50 minutes. Push acceptance is not proof that iOS ran the app.

@@ -20,6 +20,12 @@
       "passed": 5,
       "result_bundle": "test_sim_2026-09-08T17-04-52-988Z_pid34218_1e8e4748.xcresult",
       "scope": "All incremental engine integration tests after final catalog-recovery change"
+    },
+    {
+      "build": "5",
+      "passed": 3,
+      "result_bundle": "test_sim_2026-09-08T17-22-19-614Z_pid34218_7c013cae.xcresult",
+      "scope": "Existing UI suite after status line and live counter fixes"
     }
   ]
 }

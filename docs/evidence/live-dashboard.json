@@ -1,0 +1,27 @@
+{
+  "build": "5",
+  "passed": true,
+  "same_sync_without_app_restart": true,
+  "status_refresh_seconds": 5,
+  "before": {
+    "cloud_bytes": 8037696,
+    "cloud_chunks": 3814,
+    "series_count": 44,
+    "sync_running": true,
+    "updated_at": "2026-09-08T17:24:48Z"
+  },
+  "after": {
+    "cloud_bytes": 8175118,
+    "cloud_chunks": 3919,
+    "series_count": 44,
+    "sync_running": true,
+    "updated_at": "2026-09-08T17:25:24Z"
+  },
+  "short_and_long_action_text_keep_same_card_height": true,
+  "long_action_text_truncates_after_two_lines": true,
+  "ui_tests": {
+    "passed": 3,
+    "failed": 0,
+    "result_bundle": "test_sim_2026-09-08T17-22-19-614Z_pid34218_7c013cae.xcresult"
+  }
+}

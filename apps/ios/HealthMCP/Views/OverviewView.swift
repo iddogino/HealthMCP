@@ -50,7 +50,9 @@ struct SyncProgressCard: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack { Label(run.trigger == "Initial backfill" ? "First backfill" : "Sync in progress", systemImage: "arrow.triangle.2.circlepath").font(.headline).foregroundStyle(Brand.accent); Spacer(); Text(run.phase == "streaming" ? "LIVE" : "\(Int(run.progress * 100))%").font(.title2.monospacedDigit().weight(.semibold)) }
                 ProgressView(value: run.progress).tint(Brand.accent).scaleEffect(x: 1, y: 1.6).accessibilityLabel("Sync progress").accessibilityValue("\(Int(run.progress * 100)) percent")
-                Text(run.stage).font(.subheadline).foregroundStyle(Brand.secondary).accessibilityIdentifier("sync-stage")
+                Text(run.stage).font(.subheadline).foregroundStyle(Brand.secondary)
+                    .lineLimit(2, reservesSpace: true).truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("sync-stage")
                 if run.phase == "streaming", let total = run.totalTypes {
                     Text("\(run.completedTypes ?? 0) of \(total) data types scanned · recent uploads are available as they finish").font(.caption).foregroundStyle(Brand.secondary)
                 }

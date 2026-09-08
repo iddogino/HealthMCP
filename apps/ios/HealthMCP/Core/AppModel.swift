@@ -118,6 +118,16 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     private func runSync() async {
         guard let journal, let client = api, let initial = currentRun else { return }
         UIApplication.shared.isIdleTimerDisabled = true
+        // Refresh the server's totals independently of HealthKit reads and uploads.
+        // One request at a time, only for the lifetime of this sync.
+        let liveStatus = Task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(5)) } catch { break }
+                guard !Task.isCancelled else { break }
+                await refreshStatus(includeConnections: false)
+            }
+        }
+        defer { liveStatus.cancel() }
         #if DEBUG
         let responsiveness = Task { @MainActor in
             var last = ContinuousClock.now, saved = ContinuousClock.now
@@ -139,6 +149,8 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
             self?.currentRun = run
         }
         let completed = await engine.sync(definitions: definitions)
+        liveStatus.cancel()
+        await liveStatus.value
         currentRun = completed
         if completed.status == "complete" { lastSyncedAt = Date() }
         if completed.status == "paused" || completed.status == "failed" { syncAgain = false }
@@ -147,20 +159,29 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         UIApplication.shared.isIdleTimerDisabled = false
         observerCompletions.forEach { $0() }; observerCompletions.removeAll()
         scheduleBackstop()
-        await refreshStatus()
+        await Task { await refreshStatus() }.value
         if syncAgain { syncAgain = false; startSync(trigger: "Health data changed") }
     }
-    func refreshStatus() async {
+    func refreshStatus(includeConnections: Bool = true) async {
         guard let client = api, !client.userID.isEmpty, !isDemo else { return }
         do {
             let result = try await client.json("GET", "/v1/status")
+            try Task.checkCancellation()
+            guard api?.userID == client.userID else { return }
             if let timestamp = result["last_synced_at"] as? Double { lastSyncedAt = Date(timeIntervalSince1970: timestamp) }
             let usage = result["usage"] as? [String: Any]; cloudBytes = usage?["bytes"] as? Int ?? 0; cloudChunks = usage?["chunks"] as? Int ?? 0
             seriesCount = (result["series"] as? [Any])?.count ?? 0
             pushStatus = result["push_registered"] as? Bool == true ? "Device registered" : "Not enabled"
+            #if DEBUG
+            let snapshot: [String: Any] = ["updated_at": HealthDates.timestamp(Date()), "series_count": seriesCount, "cloud_bytes": cloudBytes, "cloud_chunks": cloudChunks, "sync_running": isSyncing, "sync_run_id": currentRun?.id ?? ""]
+            Task.detached(priority: .utility) { SyncDiagnostics.write(snapshot, name: "status.json") }
+            #endif
+            guard includeConnections else { return }
             let response = try await client.json("GET", "/v1/connections")
+            try Task.checkCancellation()
+            guard api?.userID == client.userID else { return }
             connections = (response["connections"] as? [[String: Any]] ?? []).compactMap { row in guard let id = row["id"] as? String, let name = row["client_name"] as? String, let date = row["created_at"] as? Double else { return nil }; return AgentConnection(id: id, name: name, createdAt: Date(timeIntervalSince1970: date)) }
-        } catch { if !isSyncing { pushStatus = "Service unavailable" } }
+        } catch { if !Task.isCancelled, !isSyncing { pushStatus = "Service unavailable" } }
     }
     func previewPairing() async {
         busy = true; defer { busy = false }
@@ -268,5 +289,6 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         var run = SyncRun(trigger: "Health data changed"); run.startedAt = Date().addingTimeInterval(-285); run.finishedAt = Date().addingTimeInterval(-240); run.status = "complete"; run.stage = "Your encrypted cache is up to date"; run.uploadedChunks = 18; run.totalChunks = 18; run.uploadedBytes = 182400; run.progress = 1
         history = [run]; pushStatus = "Device registered"
         if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { run.status = "running"; run.trigger = "Initial backfill"; run.progress = 0.62; run.totalChunks = 320; run.uploadedChunks = 144; run.stage = "Encrypting and uploading"; run.phase = "streaming"; run.completedTypes = 17; run.totalTypes = 53; currentRun = run }
+        if ProcessInfo.processInfo.arguments.contains("-ui-long-stage") { currentRun?.stage = "Reading Dietary Polyunsaturated Fat · uploads continue between pages while older health history is indexed" }
     }
 }
