@@ -32,6 +32,12 @@
       "passed": 3,
       "result_bundle": "test_sim_2026-09-08T18-29-46-656Z_pid34218_db6a9467.xcresult",
       "scope": "Existing UI suite after pairing keyboard dismissal fix"
+    },
+    {
+      "build": "8",
+      "passed": 3,
+      "result_bundle": "test_sim_2026-09-08T18-56-50-468Z_pid34218_101d51ad.xcresult",
+      "scope": "Existing UI suite after private-key copy confirmation and stable button layout"
     }
   ]
 }

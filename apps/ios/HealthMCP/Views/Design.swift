@@ -31,12 +31,29 @@ struct SecondaryButton: ButtonStyle {
 struct Eyebrow: View { let text: String; var body: some View { Text(text.uppercased()).font(.caption.weight(.semibold)).tracking(2).foregroundStyle(Brand.secondary) } }
 struct PrivateKeyView: View {
     let key: String
+    @State private var copiedAt: Date?
     var body: some View {
         VStack(spacing: 22) {
             if let image = qrImage(key) { Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(width: 180, height: 180).padding(16).background(.white, in: RoundedRectangle(cornerRadius: 20)).accessibilityLabel("Private key QR code") }
             Text(HealthCrypto.formatted(key)).font(.system(.title3, design: .monospaced, weight: .semibold)).foregroundStyle(Brand.accent).minimumScaleFactor(0.7).lineLimit(1).textSelection(.enabled).accessibilityIdentifier("private-key")
-            Button { UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: HealthCrypto.formatted(key)]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)]) } label: { Label("Copy private key", systemImage: "doc.on.doc") }.buttonStyle(SecondaryButton())
+            Button {
+                UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: HealthCrypto.formatted(key)]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)])
+                copiedAt = Date()
+            } label: {
+                ZStack {
+                    Label("Copy private key", systemImage: "doc.on.doc").opacity(copiedAt == nil ? 1 : 0)
+                    Label("Private key copied", systemImage: "checkmark").opacity(copiedAt == nil ? 0 : 1)
+                }.accessibilityElement(children: .ignore)
+                    .accessibilityLabel(copiedAt == nil ? "Copy private key" : "Private key copied")
+            }.buttonStyle(SecondaryButton()).accessibilityIdentifier("copy-private-key")
         }.frame(maxWidth: .infinity)
+            .task(id: copiedAt) {
+                guard copiedAt != nil else { return }
+                do {
+                    try await Task.sleep(for: .seconds(3))
+                    copiedAt = nil
+                } catch {}
+            }
     }
     private func qrImage(_ value: String) -> UIImage? {
         let filter = CIFilter.qrCodeGenerator(); filter.message = Data(HealthCrypto.formatted(value).utf8)

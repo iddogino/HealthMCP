@@ -1,0 +1,23 @@
+{
+  "build": "8",
+  "version": "1.0.0",
+  "simulator": "iPhone 17 Pro, iOS 26.3.1",
+  "uses_synthetic_key": true,
+  "debug_build_passed": true,
+  "release_archive_export_passed": true,
+  "manual_checks": {
+    "settings_reveal_and_copy_confirmation": true,
+    "settings_clipboard_matches_synthetic_key": true,
+    "onboarding_copy_confirmation": true,
+    "onboarding_clipboard_matches_synthetic_key": true,
+    "confirmation_resets_after_three_seconds": true,
+    "repeated_copy_shows_confirmation_again": true,
+    "button_and_card_keep_same_height": true
+  },
+  "ui_tests": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "result_bundle": "test_sim_2026-09-08T18-56-50-468Z_pid34218_101d51ad.xcresult"
+  }
+}
