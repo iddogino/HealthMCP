@@ -11,19 +11,21 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 def normalize_key(value: str) -> str:
     alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
     key = re.sub(r"[-\s]", "", value.upper())
-    if len(key) != 17 or any(c not in alphabet for c in key[:16]):
+    if len(key) not in (17, 27) or any(c not in alphabet for c in key[:-1]):
         raise ValueError("Invalid key")
     check = 0
-    for c in key[:16]:
+    for c in key[:-1]:
         check = (check * 32 + alphabet.index(c)) % 37
-    if (alphabet + "*~$=U")[check] != key[16]:
+    if (alphabet + "*~$=U")[check] != key[-1]:
         raise ValueError("Invalid key checksum")
     return key
 
 def decrypt(envelope: dict, user_key: str, path: str):
     if envelope.get("v") != 1 or envelope.get("alg") != "A256GCM" or envelope.get("kdf") != "sha256":
         raise ValueError("Unsupported envelope")
-    key = hashlib.sha256(("healthmcp/v1:" + normalize_key(user_key)).encode()).digest()
+    normalized = normalize_key(user_key)
+    domain = "healthmcp/v2:" if len(normalized) == 27 else "healthmcp/v1:"
+    key = hashlib.sha256((domain + normalized).encode()).digest()
     iv, ciphertext = base64.b64decode(envelope["iv"], validate=True), base64.b64decode(envelope["ct"], validate=True)
     if len(iv) != 12 or len(ciphertext) < 18:
         raise ValueError("Invalid envelope")

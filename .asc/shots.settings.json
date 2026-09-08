@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "app": {
+    "bundle_id": "cc.healthmcp.app",
+    "project": "apps/ios/HealthMCP.xcodeproj",
+    "scheme": "HealthMCP",
+    "simulator_udid": "A5EDB143-E78A-4DC2-911E-95F6BDBBA6EE"
+  },
+  "paths": {
+    "raw_dir": "artifacts/store-screenshots/en-US",
+    "framed_dir": "artifacts/store-screenshots/en-US"
+  },
+  "pipeline": {
+    "frame_enabled": false,
+    "upload_enabled": false
+  },
+  "upload": {
+    "version_localization_id": "8172bf40-184b-48cc-90e0-d9e38be214b8",
+    "device_type": "IPHONE_69",
+    "source_dir": "artifacts/store-screenshots/en-US"
+  }
+}

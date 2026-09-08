@@ -40,6 +40,7 @@ struct IndexedSample: Sendable {
     let start: Date, end: Date
 }
 struct DirtyChunk: Identifiable, Hashable, Sendable { let series: String, period: String; var id: String { series + "/" + period } }
+struct ChunkCoverage: Codable, Sendable { let series: String, period: String, first: String, last: String }
 struct UploadedSummary: Sendable { let series: String, count: Int, first: String, last: String }
 
 // Only UUIDs, period boundaries, anchors, and operational history are persisted.
@@ -63,12 +64,15 @@ actor SyncStore {
         try execute("CREATE TABLE IF NOT EXISTS samples (uuid TEXT NOT NULL, hk_type TEXT NOT NULL, series TEXT NOT NULL, period TEXT NOT NULL, t0 REAL NOT NULL, t1 REAL NOT NULL, PRIMARY KEY(uuid,series))")
         try execute("CREATE INDEX IF NOT EXISTS sample_period ON samples(series,period)")
         try execute("CREATE INDEX IF NOT EXISTS sample_type ON samples(hk_type,uuid)")
+        try execute("CREATE INDEX IF NOT EXISTS sample_intervals ON samples(series,t0,t1)")
         try execute("CREATE TABLE IF NOT EXISTS dirty (series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(series,period))")
         try execute("CREATE TABLE IF NOT EXISTS derived (series TEXT NOT NULL, period TEXT NOT NULL, count INTEGER NOT NULL, first_day TEXT NOT NULL, last_day TEXT NOT NULL, PRIMARY KEY(series,period))")
         try execute("CREATE TABLE IF NOT EXISTS history (id TEXT PRIMARY KEY, started REAL NOT NULL, value BLOB NOT NULL)")
         try execute("CREATE TABLE IF NOT EXISTS sync_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         try execute("CREATE TABLE IF NOT EXISTS uploaded (series TEXT NOT NULL, period TEXT NOT NULL, count INTEGER NOT NULL, first_day TEXT NOT NULL, last_day TEXT NOT NULL, PRIMARY KEY(series,period))")
         try execute("CREATE TABLE IF NOT EXISTS catalog_pending (series TEXT PRIMARY KEY)")
+        try execute("CREATE TABLE IF NOT EXISTS chunk_visits (series TEXT NOT NULL, period TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(series,period))")
+        try execute("CREATE TABLE IF NOT EXISTS coverage_pending (series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(series,period))")
         if try rows("SELECT 1 FROM sync_metadata WHERE key='incremental-v1'").isEmpty {
             try execute("BEGIN IMMEDIATE")
             do {
@@ -85,6 +89,14 @@ actor SyncStore {
             do {
                 try execute("INSERT OR IGNORE INTO catalog_pending SELECT DISTINCT series FROM uploaded")
                 try execute("INSERT INTO sync_metadata(key,value) VALUES('catalog-publication-v1','1')")
+                try execute("COMMIT")
+            } catch { try? execute("ROLLBACK"); throw error }
+        }
+        if try rows("SELECT 1 FROM sync_metadata WHERE key='chunk-coverage-v1'").isEmpty {
+            try execute("BEGIN IMMEDIATE")
+            do {
+                try execute("INSERT OR IGNORE INTO coverage_pending SELECT series,period FROM uploaded WHERE series NOT IN ('profile','check')")
+                try execute("INSERT INTO sync_metadata(key,value) VALUES('chunk-coverage-v1','1')")
                 try execute("COMMIT")
             } catch { try? execute("ROLLBACK"); throw error }
         }
@@ -150,17 +162,27 @@ actor SyncStore {
         try execute("BEGIN IMMEDIATE")
         do {
             var dirty = Set<DirtyChunk>()
+            var relatedStart: Double?, relatedEnd: Double?
+            func changed(_ row: [String: Any]) {
+                dirty.formUnion(dirtyFromRow(row))
+                guard let series = row["series"] as? String, Self.workoutInputs.contains(series) else { return }
+                let start = Self.number(row["t0"]), end = Self.number(row["t1"])
+                relatedStart = min(relatedStart ?? start, start); relatedEnd = max(relatedEnd ?? end, end)
+            }
             for id in deleted {
-                for old in try rows("SELECT series,period,t0,t1 FROM samples WHERE hk_type=? AND uuid=?", [type, id.uuidString.lowercased()]) { dirty.formUnion(dirtyFromRow(old)) }
+                for old in try rows("SELECT series,period,t0,t1 FROM samples WHERE hk_type=? AND uuid=?", [type, id.uuidString.lowercased()]) { changed(old) }
                 try execute("DELETE FROM samples WHERE hk_type=? AND uuid=?", [type, id.uuidString.lowercased()])
             }
             for sample in samples {
-                for old in try rows("SELECT series,period,t0,t1 FROM samples WHERE uuid=? AND series=?", [sample.uuid, sample.series]) { dirty.formUnion(dirtyFromRow(old)) }
+                for old in try rows("SELECT series,period,t0,t1 FROM samples WHERE uuid=? AND series=?", [sample.uuid, sample.series]) { changed(old) }
                 try execute("INSERT OR REPLACE INTO samples(uuid,hk_type,series,period,t0,t1) VALUES(?,?,?,?,?,?)", [sample.uuid, type, sample.series, sample.period, sample.start.timeIntervalSince1970, sample.end.timeIntervalSince1970])
-                dirty.insert(DirtyChunk(series: sample.series, period: sample.period))
-                for month in Set([HealthDates.month(sample.start), HealthDates.month(sample.end)]) {
-                    dirty.insert(DirtyChunk(series: "daily_summary", period: month))
-                    dirty.insert(DirtyChunk(series: "activity_rings", period: month))
+                changed(["series": sample.series, "period": sample.period, "t0": sample.start.timeIntervalSince1970, "t1": sample.end.timeIntervalSince1970])
+            }
+            // Associated heart rate and routes can arrive after the workout itself.
+            // Coalesce a page's interval into one indexed lookup, including deletions.
+            if let start = relatedStart, let end = relatedEnd {
+                for row in try rows("SELECT period FROM samples WHERE series='workouts' AND t0<=? AND t1>=?", [end, start]) {
+                    if let period = row["period"] as? String { dirty.insert(DirtyChunk(series: "workouts", period: period)) }
                 }
             }
             for chunk in dirty { try markDirty(chunk.series, chunk.period) }
@@ -168,22 +190,30 @@ actor SyncStore {
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }
     }
+    private static let summaryInputs: Set<String> = ["steps", "active_energy", "exercise_minutes", "resting_heart_rate", "hrv_sdnn", "blood_glucose", "blood_oxygen", "sleep", "workouts"]
+    private static let ringInputs: Set<String> = ["active_energy", "exercise_minutes", "stand_minutes", "stand_hour", "workouts"]
+    private static let workoutInputs: Set<String> = ["heart_rate", "active_energy", "distance_walking_running", "distance_cycling", "distance_swimming", "_workout_routes"]
+    private static func number(_ value: Any?) -> Double { (value as? Double) ?? Double(value as? Int ?? 0) }
     private func dirtyFromRow(_ row: [String: Any]) -> Set<DirtyChunk> {
         guard let series = row["series"] as? String, let period = row["period"] as? String else { return [] }
-        var dirty: Set<DirtyChunk> = [DirtyChunk(series: series, period: period)]
-        let start = (row["t0"] as? Double) ?? Double(row["t0"] as? Int ?? 0)
-        let end = (row["t1"] as? Double) ?? Double(row["t1"] as? Int ?? Int(start))
-        for month in Set([HealthDates.month(Date(timeIntervalSince1970: start)), HealthDates.month(Date(timeIntervalSince1970: end))]) {
-            dirty.insert(DirtyChunk(series: "daily_summary", period: month))
-            dirty.insert(DirtyChunk(series: "activity_rings", period: month))
-        }
+        var dirty: Set<DirtyChunk> = series.hasPrefix("_") ? [] : [DirtyChunk(series: series, period: period)]
+        guard Self.summaryInputs.contains(series) || Self.ringInputs.contains(series) else { return dirty }
+        let start = Date(timeIntervalSince1970: Self.number(row["t0"]))
+        let end = Date(timeIntervalSince1970: Self.number(row["t1"]))
+        var month = HealthDates.calendar.date(from: HealthDates.calendar.dateComponents([.year, .month], from: start))!
+        repeat {
+            let period = HealthDates.month(month)
+            if Self.summaryInputs.contains(series) { dirty.insert(DirtyChunk(series: "daily_summary", period: period)) }
+            if Self.ringInputs.contains(series) { dirty.insert(DirtyChunk(series: "activity_rings", period: period)) }
+            month = HealthDates.calendar.date(byAdding: .month, value: 1, to: month)!
+        } while month <= end
         return dirty
     }
     func markDirty(_ series: String, _ period: String, priority: Int = 0) throws { try execute("INSERT INTO dirty(series,period,priority) VALUES(?,?,?) ON CONFLICT(series,period) DO UPDATE SET priority=MAX(priority,excluded.priority)", [series, period, priority]) }
     func clearDirty(_ chunk: DirtyChunk) throws { try execute("DELETE FROM dirty WHERE series=? AND period=?", [chunk.series, chunk.period]) }
     func dirtyChunks() throws -> [DirtyChunk] { try rows("SELECT series,period FROM dirty ORDER BY CASE WHEN series='daily_summary' THEN 1 ELSE 0 END,series,period").compactMap { row in guard let series = row["series"] as? String, let period = row["period"] as? String else { return nil }; return DirtyChunk(series: series, period: period) } }
-    func nextDirty(limit: Int, excluding: Set<String> = []) throws -> [DirtyChunk] {
-        try rows("SELECT series,period FROM dirty ORDER BY priority DESC,period DESC,series LIMIT ?", [limit + excluding.count])
+    func nextDirty(limit: Int, excluding: Set<String> = [], notUploadedInRun: String? = nil) throws -> [DirtyChunk] {
+        try rows("SELECT d.series,d.period FROM dirty d LEFT JOIN chunk_visits v ON v.series=d.series AND v.period=d.period WHERE COALESCE(v.run_id,'')!=? ORDER BY d.priority DESC,d.period DESC,d.series LIMIT ?", [notUploadedInRun ?? "-", limit + excluding.count])
             .compactMap { row -> DirtyChunk? in guard let series = row["series"] as? String, let period = row["period"] as? String else { return nil }; return DirtyChunk(series: series, period: period) }
             .filter { !excluding.contains($0.id) }.prefix(limit).map { $0 }
     }
@@ -197,15 +227,33 @@ actor SyncStore {
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }
     }
-    func recordUpload(_ chunk: DirtyChunk, count: Int, first: String, last: String) throws {
+    func recordUpload(_ chunk: DirtyChunk, count: Int, first: String, last: String, runID: String? = nil) throws {
         try execute("BEGIN IMMEDIATE")
         do {
             if count > 0 { try execute("INSERT OR REPLACE INTO uploaded(series,period,count,first_day,last_day) VALUES(?,?,?,?,?)", [chunk.series, chunk.period, count, first, last]) }
             else { try execute("DELETE FROM uploaded WHERE series=? AND period=?", [chunk.series, chunk.period]) }
             try execute("INSERT OR IGNORE INTO catalog_pending(series) VALUES(?)", [chunk.series])
+            if let runID { try execute("INSERT OR REPLACE INTO chunk_visits(series,period,run_id) VALUES(?,?,?)", [chunk.series, chunk.period, runID]) }
+            try execute("DELETE FROM coverage_pending WHERE series=? AND period=?", [chunk.series, chunk.period])
             try clearDirty(chunk)
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }
+    }
+    func pendingCoverage(limit: Int = 200) throws -> [ChunkCoverage] {
+        try rows("SELECT u.* FROM uploaded u JOIN coverage_pending p ON p.series=u.series AND p.period=u.period ORDER BY u.series,u.period LIMIT ?", [limit]).compactMap { row in
+            guard let series = row["series"] as? String, let period = row["period"] as? String, let first = row["first_day"] as? String, let last = row["last_day"] as? String else { return nil }
+            return ChunkCoverage(series: series, period: period, first: first, last: last)
+        }
+    }
+    func acknowledgeCoverage(_ coverage: [ChunkCoverage], missing: [DirtyChunk] = []) throws {
+        try transaction {
+            for chunk in missing { try markDirty(chunk.series, chunk.period, priority: 50) }
+            for item in coverage { try execute("DELETE FROM coverage_pending WHERE series=? AND period=?", [item.series, item.period]) }
+        }
+    }
+    private func transaction(_ body: () throws -> Void) throws {
+        try execute("BEGIN IMMEDIATE")
+        do { try body(); try execute("COMMIT") } catch { try? execute("ROLLBACK"); throw error }
     }
     func uploadedSummary(_ series: String) throws -> UploadedSummary {
         let row = try rows("SELECT COALESCE(SUM(count),0) AS count,MIN(first_day) AS first,MAX(last_day) AS last FROM uploaded WHERE series=?", [series]).first ?? [:]
@@ -230,10 +278,12 @@ actor SyncStore {
         return (count, first, last)
     }
     func clearSeries(_ series: String) throws {
+        try transaction {
         let types = Set(try rows("SELECT DISTINCT hk_type FROM samples WHERE series=?", [series]).compactMap { $0["hk_type"] as? String } + SeriesDefinition.all.filter { $0.id == series }.compactMap { $0.sampleType?.identifier })
         for type in types { try execute("DELETE FROM anchors WHERE type=?", [type]) }
-        for table in ["samples", "dirty", "derived", "uploaded", "catalog_pending"] { try execute("DELETE FROM \(table) WHERE series=?", [series]) }
+        for table in ["samples", "dirty", "derived", "uploaded", "catalog_pending", "chunk_visits", "coverage_pending"] { try execute("DELETE FROM \(table) WHERE series=?", [series]) }
         try execute("DELETE FROM sync_metadata WHERE key='recent-seed'")
+        }
     }
-    func resetIndex() throws { for table in ["samples", "anchors", "dirty", "derived", "uploaded", "catalog_pending"] { try execute("DELETE FROM \(table)") }; try execute("DELETE FROM sync_metadata WHERE key='recent-seed'") }
+    func resetIndex() throws { try transaction { for table in ["samples", "anchors", "dirty", "derived", "uploaded", "catalog_pending", "chunk_visits", "coverage_pending"] { try execute("DELETE FROM \(table)") }; try execute("DELETE FROM sync_metadata WHERE key='recent-seed'") } }
 }

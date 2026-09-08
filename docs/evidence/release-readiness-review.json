@@ -1,0 +1,89 @@
+{
+  "reviewed_commit": "54eeaec7ff9513745fe8110c281c5376b5af8774",
+  "date": "2026-09-08",
+  "public_release_ready": false,
+  "findings": {
+    "P1": 6,
+    "P2": 5
+  },
+  "baseline": {
+    "native_tests_passed": 19,
+    "protocol_tests_passed": 3,
+    "local_e2e_checks_passed": 21,
+    "live_readonly_checks_passed": 13,
+    "crypto_interop_checks_passed": 3,
+    "worker_typecheck": "passed",
+    "site_typecheck": "passed",
+    "site_build": "passed",
+    "root_production_advisories": 0,
+    "site_production_advisories": 0
+  },
+  "native_observations": [
+    "REVIEW_OBSERVATION sync_started_while_busy=true",
+    "REVIEW_OBSERVATION repeated_period_reads=[\"daily_summary/2020-01\": 9, \"activity_rings/2026-09\": 1, \"heart_rate/2026-09-02\": 1, \"heart_rate/2026-09-05\": 1, \"heart_rate/2020-01-15\": 9, \"activity_rings/2020-01\": 9, \"heart_rate/2026-09-04\": 1, \"heart_rate/2026-09-07\": 1, \"daily_summary/2026-09\": 1, \"heart_rate/2026-09-06\": 1, \"heart_rate/2026-09-08\": 1, \"heart_rate/2026-09-03\": 1]",
+    "REVIEW_OBSERVATION restored_onboarded=true registered_user=false sync_started=false",
+    "REVIEW_OBSERVATION bootstrap_retried_after_repair=false"
+  ],
+  "worker_observations": [
+    {
+      "finding": "record-upload-ack-without-index",
+      "reproduced": true,
+      "retry": {
+        "stored": true,
+        "unchanged": true,
+        "path": "u_00000000-0000-4000-8000-000000000099/workouts/2026-09-01/00000000-0000-4000-8000-000000000001"
+      },
+      "indexed_chunks": 0,
+      "stored_objects": 1
+    },
+    {
+      "finding": "workout-detail-update-discarded",
+      "reproduced": true,
+      "response": {
+        "stored": true,
+        "unchanged": true,
+        "path": "u_00000000-0000-4000-8000-000000000099/workouts/2026-09-01/00000000-0000-4000-8000-000000000001"
+      },
+      "first_payload_retained": true
+    },
+    {
+      "finding": "pairing-stuck-after-provider-failure",
+      "reproduced": true,
+      "retry": {
+        "status": "completing"
+      },
+      "authorization_attempts": 1
+    },
+    {
+      "finding": "delete-cannot-be-retried-after-lost-response",
+      "reproduced": true,
+      "retry_status": 401,
+      "retry_error": "Unknown device"
+    },
+    {
+      "finding": "overlap-filter-cannot-see-next-day-sleep-chunk",
+      "reproduced": true,
+      "example_sleep_start": "2026-09-01T23:00:00Z",
+      "example_sleep_end": "2026-09-02T07:00:00Z",
+      "stored_period": "2026-09-02",
+      "requested_day": "2026-09-01",
+      "returned_chunks": 0
+    }
+  ],
+  "asc": {
+    "app_id": "6809625249",
+    "store_version": "1.0",
+    "build_version": "1.0.0 (8)",
+    "processing_state": "VALID",
+    "validation_blocking_checks": 34,
+    "validation_warnings": 2,
+    "privacy_publication": "unverified: browser session requires login"
+  },
+  "production_mutations": false,
+  "physical_gates_remaining": [
+    "full historical backfill completion",
+    "background APNs completed sync",
+    "force-quit visible fallback and recovery"
+  ],
+  "report": "docs/release-readiness-review-2026-09-08.md"
+}

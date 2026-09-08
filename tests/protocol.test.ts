@@ -18,3 +18,10 @@ test('Envelopes reject plaintext, unknown fields, truncated tags, and malformed 
   assert.equal(validateEnvelope(envelope),true);assert.equal(validateEnvelope({...envelope,v:2}),false);
   assert.equal(validateEnvelope({...envelope,value:812}),false);assert.equal(validateEnvelope({...envelope,ct:'AA=='}),false);
 });
+
+test('new 130-bit keys and legacy keys normalize without changing their payload',()=>{
+  for(const payload of ['0123456789ABCDEF','0123456789ABCDEFGHJKMNPQRS']) {
+    const key=payload+checksum(payload);assert.equal(normalizeKey(formatKey(key).toLowerCase()),key);
+    assert.throws(()=>normalizeKey(key.slice(0,-1)+(key.at(-1)==='0'?'1':'0')));
+  }
+});

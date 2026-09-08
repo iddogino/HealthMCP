@@ -4,7 +4,16 @@ struct RootView: View {
     @EnvironmentObject var model: AppModel
     var body: some View {
         Group {
-            if !model.initialized { VStack(spacing: 24) { BrandMark(size: 72); ProgressView().tint(Brand.accent); Text("Opening your private health bridge").foregroundStyle(Brand.secondary) }.frame(maxWidth: .infinity, maxHeight: .infinity).healthBackground() }
+            if !model.initialized {
+                VStack(spacing: 24) {
+                    BrandMark(size: 72)
+                    if let error = model.startupError {
+                        Text("Your private storage needs attention").font(.headline)
+                        Text(error).foregroundStyle(Brand.secondary).multilineTextAlignment(.center)
+                        Button("Try again") { Task { await model.bootstrap() } }.buttonStyle(PrimaryButton()).accessibilityIdentifier("retry-startup")
+                    } else { ProgressView().tint(Brand.accent); Text("Opening your private health bridge").foregroundStyle(Brand.secondary) }
+                }.padding(26).frame(maxWidth: .infinity, maxHeight: .infinity).healthBackground()
+            }
             else if !model.onboarded { OnboardingView() }
             else {
                 TabView(selection: $model.selectedTab) {
@@ -12,6 +21,15 @@ struct RootView: View {
                     AgentsView().tabItem { Label("Agents", systemImage: "point.3.connected.trianglepath.dotted") }.tag(1)
                     SettingsView().tabItem { Label("Settings", systemImage: "slider.horizontal.3") }.tag(2)
                 }.tint(Brand.accent)
+            }
+        }
+        .safeAreaInset(edge: .top) {
+            if model.initialized, model.pendingPrivacy != nil {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Finishing your privacy change").font(.headline)
+                    Text("Sync stays paused until cleanup finishes.").font(.subheadline)
+                    Button(model.busy ? "Working…" : "Retry cleanup") { Task { await model.retryPrivacy() } }.disabled(model.busy)
+                }.padding().frame(maxWidth: .infinity, alignment: .leading).background(Brand.raised)
             }
         }
         .alert("Something needs attention", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK", role: .cancel) { model.error = nil } } message: { Text(model.error ?? "") }

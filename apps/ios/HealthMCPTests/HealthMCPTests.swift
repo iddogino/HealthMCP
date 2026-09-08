@@ -23,6 +23,16 @@ final class HealthMCPTests: XCTestCase {
         let savedAnchor = try await store.anchor(for: "steps"); XCTAssertNotNil(savedAnchor)
         let stillPending = Set(try await store.dirtyChunks().map(\.id)); XCTAssertEqual(stillPending, pending)
     }
+    func testNewKeysHave130RandomBitsAndLegacyCiphertextStillDecrypts() throws {
+        let key = try HealthCrypto.generateKey()
+        XCTAssertEqual(key.count, 27); XCTAssertEqual(try HealthCrypto.normalize(HealthCrypto.formatted(key)), key)
+        let data = Data("\"synthetic\"".utf8), path = "u_test/check"
+        XCTAssertEqual(try HealthCrypto.decrypt(HealthCrypto.encrypt(data, key: key, path: path), key: key, path: path), data)
+        let legacy = "0123456789ABCDEF" + String(try HealthCrypto.checksum("0123456789ABCDEF"))
+        XCTAssertEqual(try HealthCrypto.normalize(legacy).count, 17)
+        XCTAssertThrowsError(try HealthCrypto.decrypt(HealthCrypto.encrypt(data, key: legacy, path: path), key: key, path: path))
+    }
+
     func testNodeCryptoVectorAndTamperRejection() async throws {
         let file = Bundle(for: Self.self).url(forResource:"crypto-v1",withExtension:"json")!
         let vector = try JSONSerialization.jsonObject(with:Data(contentsOf:file)) as! [String:Any]
@@ -63,7 +73,7 @@ final class HealthMCPTests: XCTestCase {
         let initialAnchor = try await store!.anchor(for:type); XCTAssertNotNil(initialAnchor)
         store=nil
         let reopened=try await SyncStore.open(url:url)
-        let firstDirty = Set(try await reopened.dirtyChunks().map(\.id)); XCTAssertEqual(firstDirty,Set(["sleep/2026-09-01","daily_summary/2026-08","daily_summary/2026-09","activity_rings/2026-08","activity_rings/2026-09"]))
+        let firstDirty = Set(try await reopened.dirtyChunks().map(\.id)); XCTAssertEqual(firstDirty,Set(["sleep/2026-09-01","daily_summary/2026-08","daily_summary/2026-09"]))
         for chunk in try await reopened.dirtyChunks(){try await reopened.clearDirty(chunk)}
         try await reopened.applyPage(type:type,samples:[],deleted:[id],anchor:HKQueryAnchor(fromValue:124))
         let deletedCount = try await reopened.totalSamples(); XCTAssertEqual(deletedCount,0)

@@ -17,9 +17,16 @@ protocol HealthSyncReading: Sendable {
 }
 protocol SyncUploading: Sendable {
     func upload(series: String, period: String, plaintext: Data, key: String) async throws -> Int
+    func upload(series: String, period: String, plaintext: Data, key: String, coverage: ChunkCoverage?) async throws -> Int
+    func updateCoverage(_ coverage: [ChunkCoverage]) async throws -> [DirtyChunk]
     func delete(series: String, period: String) async throws
     func updateCatalog(_ summary: UploadedSummary) async throws
     func completeSync() async throws
+}
+
+extension SyncUploading {
+    func upload(series: String, period: String, plaintext: Data, key: String, coverage: ChunkCoverage?) async throws -> Int { try await upload(series: series, period: period, plaintext: plaintext, key: key) }
+    func updateCoverage(_ coverage: [ChunkCoverage]) async throws -> [DirtyChunk] { [] }
 }
 
 enum BackfillPlan {
@@ -53,7 +60,7 @@ actor SyncEngine {
     }
     func sync(definitions: [SeriesDefinition], now: Date = Date()) async -> SyncRun {
         let grouped = Dictionary(grouping: definitions.filter { $0.sampleType != nil }, by: { $0.sampleType!.identifier })
-        let priority = ["Steps", "HeartRate", "SleepAnalysis", "ActiveEnergyBurned"]
+        let priority = ["StepCount", "HeartRate", "SleepAnalysis", "ActiveEnergyBurned"]
         var queue = grouped.keys.sorted()
         queue.sort { lhs, rhs in
             let l = priority.firstIndex(of: grouped[lhs]!.first!.hkName) ?? 100
@@ -66,6 +73,7 @@ actor SyncEngine {
             try await publish(force: true)
             run.stage = "Preparing recent data"
             _ = try await client.upload(series: "check", period: "single", plaintext: Data("\"ok\"".utf8), key: key)
+            try await flushCoverage()
             try await store.seedRecent(BackfillPlan.recentChunks(definitions: definitions, now: now), day: HealthDates.day(now))
             try await store.markDirty("daily_summary", HealthDates.month(now), priority: 200)
             try await store.markDirty("activity_rings", HealthDates.month(now), priority: 200)
@@ -133,11 +141,11 @@ actor SyncEngine {
     }
     private func drainBatch(definitions: [SeriesDefinition]) async throws -> Bool {
         try Task.checkCancellation()
-        let chunks = try await store.nextDirty(limit: 4, excluding: failedChunks)
+        let chunks = try await store.nextDirty(limit: 4, excluding: failedChunks, notUploadedInRun: run.phase == "streaming" ? run.id : nil)
         guard !chunks.isEmpty else { return false }
         run.stage = "Encrypting and uploading \(chunks.first!.series.replacingOccurrences(of: "_", with: " "))"
         try await publish()
-        let reader = reader, client = client, key = key, store = store
+        let reader = reader, client = client, key = key, store = store, runID = run.id
         var locked = false
         await withTaskGroup(of: (DirtyChunk, Int, Double, String?, Bool).self) { group in
             for chunk in chunks {
@@ -150,14 +158,15 @@ actor SyncEngine {
                         for attempt in 0..<3 {
                             do {
                                 if payload.count == 0 { try await client.delete(series: chunk.series, period: chunk.period) }
-                                else { bytes = try await client.upload(series: chunk.series, period: chunk.period, plaintext: payload.data, key: key) }
+                                else { bytes = try await client.upload(series: chunk.series, period: chunk.period, plaintext: payload.data, key: key, coverage: ChunkCoverage(series: chunk.series, period: chunk.period, first: payload.first, last: payload.last)) }
                                 break
                             } catch {
-                                if attempt == 2 || Task.isCancelled { throw error }
-                                try await Task.sleep(for: .seconds(Double(1 << attempt)))
+                                if attempt == 2 || Task.isCancelled || (error as? APIError)?.isRetryable == false { throw error }
+                                let delay = min(60, max(Double(1 << attempt), (error as? APIError)?.retryAfter ?? 0))
+                                try await Task.sleep(for: .seconds(delay))
                             }
                         }
-                        try await store.recordUpload(chunk, count: payload.count, first: payload.first, last: payload.last)
+                        try await store.recordUpload(chunk, count: payload.count, first: payload.first, last: payload.last, runID: runID)
                         return (chunk, bytes, Self.milliseconds(since: start), nil, false)
                     } catch {
                         return (chunk, -1, Self.milliseconds(since: start), error is CancellationError || Task.isCancelled ? nil : error.localizedDescription, SyncInterruption.isHealthDataLocked(error))
@@ -175,6 +184,15 @@ actor SyncEngine {
         if locked { throw SyncInterruption.healthDataLocked }
         try Task.checkCancellation()
         return true
+    }
+    private func flushCoverage() async throws {
+        while true {
+            try Task.checkCancellation()
+            let batch = try await store.pendingCoverage()
+            guard !batch.isEmpty else { return }
+            let missing = try await client.updateCoverage(batch)
+            try await store.acknowledgeCoverage(batch, missing: missing)
+        }
     }
     private func flushCatalog(force: Bool = false) async throws {
         guard force || lastCatalogUpdate.duration(to: .now) >= .seconds(3) else { return }
@@ -200,6 +218,13 @@ actor SyncEngine {
 }
 
 extension APIClient: SyncUploading {
+    func updateCoverage(_ coverage: [ChunkCoverage]) async throws -> [DirtyChunk] {
+        let result = try await json("PUT", "/v1/chunk-coverage", ["chunks": coverage.map { ["series": $0.series, "period": $0.period, "first_day": $0.first, "last_day": $0.last] }])
+        return (result["missing"] as? [[String: String]] ?? []).compactMap { row in
+            guard let series = row["series"], let period = row["period"], coverage.contains(where: { $0.series == series && $0.period == period }) else { return nil }
+            return DirtyChunk(series: series, period: period)
+        }
+    }
     func updateCatalog(_ summary: UploadedSummary) async throws { _ = try await json("PUT", "/v1/series", ["series": summary.series, "first_day": summary.first, "last_day": summary.last, "total_samples": summary.count]) }
     func completeSync() async throws { _ = try await json("POST", "/v1/sync/complete", [:]) }
 }
@@ -226,7 +251,7 @@ extension HealthReader: HealthSyncReading {
     }
     func recentRecords(definitions: [SeriesDefinition], now: Date) async throws -> [IndexedSample] {
         var result: [IndexedSample] = []
-        for definition in definitions where definition.chunk == "record" {
+        for definition in definitions where definition.chunk == "record" && definition.kind != .route {
             guard let type = definition.sampleType else { continue }
             let samples = try await samples(type: type, predicate: HKQuery.predicateForSamples(withStart: now.addingTimeInterval(-7 * 86400), end: now), limit: 8, ascending: false)
             result.append(contentsOf: samples.map { index($0, definition: definition) })

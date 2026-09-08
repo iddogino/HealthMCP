@@ -26,7 +26,7 @@ export function parseJSON<T = Record<string,unknown>>(body: string): T {
 export async function rateLimit(env: Env, key: string, limit: number, seconds: number) {
   const window = Math.floor(now()/seconds);
   const row = await env.DB.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(`${key}:${window}`,(window+1)*seconds).first<{count:number}>();
-  if (!row || row.count > limit) throw new HttpError(429,'Too many requests; try again later');
+  if (!row || row.count > limit) throw new HttpError(429,'Too many requests; try again later',(window+1)*seconds-now());
 }
 export async function verifySignature(request: Request, body: string, publicKey: string) {
   const timestamp=request.headers.get('x-timestamp')??'', nonce=request.headers.get('x-nonce')??'', signature=request.headers.get('x-signature')??'';
@@ -43,12 +43,21 @@ export async function verifySignature(request: Request, body: string, publicKey:
 }
 export async function authenticateDevice(request: Request, env: Env, body: string): Promise<User> {
   const userId=request.headers.get('x-user-id')??'';
-  const user=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(userId).first<User>();
+  let user=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(userId).first<User>();
+  const url=new URL(request.url);
+  if(!user && request.method==='DELETE' && url.pathname==='/v1/account') {
+    const receipt=await env.DB.prepare('SELECT device_pubkey FROM account_deletions WHERE user_id=? AND expires_at>?').bind(userId,now()).first<{device_pubkey:string}>();
+    if(receipt) user={id:userId,device_pubkey:receipt.device_pubkey,state:'deleted'} as User;
+  }
   if (!user) throw new HttpError(401,'Unknown device');
   const nonce=await verifySignature(request,body,user.device_pubkey);
+  await rateLimit(env,`device:${user.id}`,1200,60);
+  await rateLimit(env,'device:global',12000,60);
   const claim=await env.DB.prepare('INSERT OR IGNORE INTO nonces(user_id,nonce,expires_at) VALUES(?,?,?)').bind(user.id,nonce,now()+600).run();
   if (claim.meta.changes!==1) throw new HttpError(409,'Request already used');
   if (user.state!=='active' && !['/v1/cache/reset','/v1/account'].includes(new URL(request.url).pathname)) throw new HttpError(409,'Cache reset in progress');
+  const generation=url.searchParams.get('cache_generation'),revision=url.searchParams.get('privacy_revision');
+  if((generation!==null && generation!==String(user.cache_generation)) || (revision!==null && revision!==String(user.privacy_revision))) throw new HttpError(409,'Privacy settings changed; restart sync');
   return user;
 }
 export async function hmac(env: Env, payload: string) {

@@ -14,12 +14,14 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "test:e2e": "node --import tsx scripts/e2e.ts",
+    "test:client": "node --import tsx scripts/trusted-client-e2e.ts",
     "deploy:worker": "wrangler deploy --config apps/worker/wrangler.jsonc",
     "deploy:site": "npm --prefix apps/site run build && wrangler deploy --config apps/site/wrangler.site.jsonc",
     "ios:generate": "cd apps/ios && xcodegen generate",
     "test:interop": "node scripts/crypto-interop.mjs",
     "sync:references": "node scripts/sync-reference-scripts.mjs",
-    "typecheck:site": "tsc --noEmit -p apps/site/tsconfig.json"
+    "typecheck:site": "tsc --noEmit -p apps/site/tsconfig.json",
+    "build:client": "node scripts/build-client.mjs"
   },
   "engines": {
     "node": ">=22.13"
@@ -34,6 +36,7 @@
     "@types/node": "^22",
     "tsx": "^4",
     "typescript": "^5.9.3",
-    "wrangler": "^4.129.1"
+    "wrangler": "^4.129.1",
+    "esbuild": "0.28.2"
   }
 }

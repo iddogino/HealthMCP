@@ -12,10 +12,11 @@ struct AgentsView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     Eyebrow(text: "Choose your connections")
                     Text("Better context.\nYour permission.").font(.system(size: 36, weight: .semibold, design: .rounded)).tracking(-1)
-                    Text("Add Health MCP to an agent with a code sandbox. Approve the connection here, then save your private key in the agent’s secure configuration.").foregroundStyle(Brand.secondary)
+                    Text("Export the trusted client from Settings and connect it to your assistant. Approve its pairing code here, then save your key privately on your computer.").foregroundStyle(Brand.secondary)
                     Panel {
                         VStack(alignment: .leading, spacing: 16) {
-                            Eyebrow(text: "01 / Add this MCP server")
+                            Eyebrow(text: "01 / Connect your client")
+                            Text("Start with Settings → Export trusted client. The remote endpoint is also available for independently trusted integrations.").font(.subheadline).foregroundStyle(Brand.secondary)
                             Text("https://mcp.healthmcp.cc/mcp").font(.system(.subheadline, design: .monospaced)).foregroundStyle(Brand.accent).textSelection(.enabled)
                             Button { UIPasteboard.general.string = "https://mcp.healthmcp.cc/mcp"; copied = true } label: { Label(copied ? "Server URL copied" : "Copy server URL", systemImage: copied ? "checkmark" : "doc.on.doc") }.buttonStyle(SecondaryButton())
                         }
@@ -58,14 +59,15 @@ struct PairingConsentView: View {
     @EnvironmentObject var model: AppModel
     let preview: PairingPreview
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        ScrollView { VStack(alignment: .leading, spacing: 24) {
             BrandMark(size: 60)
             Text("Allow \(preview.name)?").font(.largeTitle.bold())
-            Text("This agent will be able to discover your health series, download encrypted data, and request a fresh sync.").foregroundStyle(Brand.secondary)
+            Text("This client can access your shared health series and request a fresh sync. With your private key, it can decrypt that data and pass it to the third-party AI assistant you connect. That provider’s privacy and retention terms then apply.").foregroundStyle(Brand.secondary)
             Panel { VStack(alignment: .leading, spacing: 12) { Eyebrow(text: "Return address"); Text(preview.host).font(.system(.body, design: .monospaced)); Label("Your private key is never shared here.", systemImage: "lock.shield").font(.subheadline).foregroundStyle(Brand.accent) } }
+            Text("Shared data: profile, everyday health and fitness" + (model.groups.isEmpty ? "" : ", " + model.groups.sorted().joined(separator: ", ")) + (model.routesEnabled ? ", and precise workout routes." : ".")).font(.subheadline).foregroundStyle(Brand.secondary)
             Text("Approve only if you started this connection and recognize this agent and its return address.").font(.subheadline).foregroundStyle(Brand.secondary)
             Button { Task { await model.approvePairing() } } label: { Text("Approve connection") }.buttonStyle(PrimaryButton()).disabled(model.busy)
             Button("Cancel") { model.pairingPreview = nil }.buttonStyle(SecondaryButton())
-        }.padding(28).frame(maxHeight: .infinity).healthBackground().presentationDetents([.large])
+        }.padding(28).frame(maxWidth: .infinity, alignment: .leading) }.healthBackground().presentationDetents([.large])
     }
 }

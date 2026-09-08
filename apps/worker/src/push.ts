@@ -1,3 +1,4 @@
+import {collectGarbage,reconcileLegacyStorage} from './storage';
 import {b64url,bytes,unbase64} from './security';
 import {type Env,type User,now} from './types';
 const tokens=new Map<string,{token:string;expires:number}>();
@@ -22,7 +23,7 @@ export async function sendPush(env:Env,user:User,visible=false):Promise<string> 
   if (!(user.apns_environment==='sandbox'?env.APNS_SANDBOX_PRIVATE_KEY:env.APNS_PRIVATE_KEY)) return 'push_not_configured';
   const endpoint=user.apns_environment==='sandbox'?'https://api.sandbox.push.apple.com':'https://api.push.apple.com';
   try {
-    const response=await fetch(`${endpoint}/3/device/${user.apns_token}`,{method:'POST',headers:{authorization:`bearer ${await jwt(env,user.apns_environment==='sandbox')}`,'apns-topic':env.APP_BUNDLE_ID,'apns-push-type':visible?'alert':'background','apns-priority':visible?'10':'5','apns-expiration':String(now()+900),'apns-collapse-id':visible?'healthmcp-sync-visible':'healthmcp-sync'},body:JSON.stringify({aps:visible?{alert:{title:'Fresh data for your assistant',body:'Your assistant wants fresh health data — tap to sync.'},sound:'default'}:{'content-available':1}})});
+    const response=await fetch(`${endpoint}/3/device/${user.apns_token}`,{method:'POST',signal:AbortSignal.timeout(10000),headers:{authorization:`bearer ${await jwt(env,user.apns_environment==='sandbox')}`,'apns-topic':env.APP_BUNDLE_ID,'apns-push-type':visible?'alert':'background','apns-priority':visible?'10':'5','apns-expiration':String(now()+900),'apns-collapse-id':visible?'healthmcp-sync-visible':'healthmcp-sync'},body:JSON.stringify({aps:visible?{alert:{title:'Fresh data for your assistant',body:'Your assistant wants fresh health data — tap to sync.'},sound:'default'}:{'content-available':1}})});
     if (response.ok) return 'accepted';
     const value=await response.json() as {reason?:string};
     if (response.status===410) await env.DB.prepare('UPDATE users SET apns_token=NULL WHERE id=?').bind(user.id).run();
@@ -46,9 +47,14 @@ export async function scheduled(env:Env) {
     }
   }
   await env.DB.batch([
+    env.DB.prepare('DELETE FROM connections WHERE revoked_at<?').bind(now()-30*86400),
+    env.DB.prepare("DELETE FROM quota_usage WHERE scope!='global' AND objects=0 AND NOT EXISTS(SELECT 1 FROM users WHERE 'user:' || users.id=scope)"),
+    env.DB.prepare('DELETE FROM account_deletions WHERE expires_at<?').bind(now()),
     env.DB.prepare('DELETE FROM nonces WHERE expires_at<?').bind(now()),
     env.DB.prepare('DELETE FROM pairings WHERE expires_at<?').bind(now()),
     env.DB.prepare('DELETE FROM rate_limits WHERE expires_at<?').bind(now()),
     env.DB.prepare('UPDATE users SET pending_sync_at=NULL WHERE last_synced_at>=pending_sync_at')
   ]);
+  await reconcileLegacyStorage(env);
+  await collectGarbage(env);
 }

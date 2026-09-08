@@ -9,10 +9,12 @@
 /* Begin PBXBuildFile section */
 		01FAB53B16CCB0BEE30F6C0D /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CEBAC9FDD5250435CAC0361 /* HealthKit.framework */; };
 		053E241FB9DF4FF11568418F /* WorkoutNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D50332BC314BCFDA1D9F7D7 /* WorkoutNames.swift */; };
+		0A0242C27DC834D21656FD6A /* HealthMCP-Private-Client.zip in Resources */ = {isa = PBXBuildFile; fileRef = 34DA07C2A745D438E8B02C55 /* HealthMCP-Private-Client.zip */; };
 		0E150A88403ECC06BE939B21 /* SymptomDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 266FD6C2A91AFF0B570CB3F1 /* SymptomDefinitions.swift */; };
 		10FEEF5D72455A9B47C730DF /* SyncDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E7F57E76ECD82FD39C9622 /* SyncDiagnostics.swift */; };
 		1A8A47D025A229E5159FAA83 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2513EF5BFA93344F601ED746 /* libsqlite3.tbd */; };
 		2AEC72362A40BB95B9C19971 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AEDFEA5E11759CA66116C0 /* SyncEngine.swift */; };
+		49CC8CA97253194D59CD1C6B /* ReleaseRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EEED6B2A64353516BA8846A /* ReleaseRecoveryTests.swift */; };
 		4C5C40D5A213DF3B1263547E /* HealthMCPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */; };
 		561C06BF4CCF3F26E417526C /* SyncPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */; };
 		576EFD29FF7B2F9CDC9902A4 /* HealthQueryRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B1BE0EAE9729ED39A1FA60 /* HealthQueryRunner.swift */; };
@@ -67,6 +69,7 @@
 		2513EF5BFA93344F601ED746 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		266FD6C2A91AFF0B570CB3F1 /* SymptomDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymptomDefinitions.swift; sourceTree = "<group>"; };
 		291077A16B80574E2A6C85C9 /* SyncStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStore.swift; sourceTree = "<group>"; };
+		34DA07C2A745D438E8B02C55 /* HealthMCP-Private-Client.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; path = "HealthMCP-Private-Client.zip"; sourceTree = "<group>"; };
 		35D39774702BE919956599B8 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		4B93A61EDB00DB7498C162EF /* HealthMCPTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HealthMCPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C7A5D441EF72F16508AE7A2 /* HealthReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReader.swift; sourceTree = "<group>"; };
@@ -75,6 +78,7 @@
 		557AB3A732CF76396DCB46C7 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		5CEBAC9FDD5250435CAC0361 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		5D3B8A05C201E316EB0C2F1E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		5EEED6B2A64353516BA8846A /* ReleaseRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseRecoveryTests.swift; sourceTree = "<group>"; };
 		69467D24AF1B72C24B87A846 /* DeviceValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceValidation.swift; sourceTree = "<group>"; };
 		6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMCPApp.swift; sourceTree = "<group>"; };
 		7E192361A64FE945309752A1 /* HealthMCPUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMCPUITests.swift; sourceTree = "<group>"; };
@@ -169,9 +173,18 @@
 				BD2D78ACE23A552110145475 /* PrivacyInfo.xcprivacy */,
 				59036B23E4FEF5E4FFE64708 /* Core */,
 				DCA43C50924708D52A0F9753 /* Health */,
+				6A2A54C05B18A555CEA12F5A /* Resources */,
 				8AB165AEFE0C70269C303FF4 /* Views */,
 			);
 			path = HealthMCP;
+			sourceTree = "<group>";
+		};
+		6A2A54C05B18A555CEA12F5A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				34DA07C2A745D438E8B02C55 /* HealthMCP-Private-Client.zip */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		8AB165AEFE0C70269C303FF4 /* Views */ = {
@@ -200,6 +213,7 @@
 				ED256CFE62986B4547441AEC /* crypto-v1.json */,
 				21F4C52194C503667CD093B6 /* HealthMCPTests.swift */,
 				81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */,
+				5EEED6B2A64353516BA8846A /* ReleaseRecoveryTests.swift */,
 				A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */,
 			);
 			path = HealthMCPTests;
@@ -328,6 +342,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EF0E4664FC6F50874C5CDD55 /* Assets.xcassets in Resources */,
+				0A0242C27DC834D21656FD6A /* HealthMCP-Private-Client.zip in Resources */,
 				AFCE597A6BC92CD53D05799D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -377,6 +392,7 @@
 			files = (
 				FFBA873FC7F29050D319C4A5 /* HealthMCPTests.swift in Sources */,
 				67E73DCB51B6FE23868FF049 /* IncrementalSyncTests.swift in Sources */,
+				49CC8CA97253194D59CD1C6B /* ReleaseRecoveryTests.swift in Sources */,
 				561C06BF4CCF3F26E417526C /* SyncPerformanceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -475,7 +491,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 10;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -536,7 +552,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 10;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

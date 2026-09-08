@@ -27,12 +27,19 @@ import UserNotifications
         BGTaskScheduler.shared.register(forTaskWithIdentifier: "cc.healthmcp.app.sync", using: nil) { [weak self] task in
             Task { @MainActor in
                 guard let model = self?.model else { task.setTaskCompleted(success: false); return }
-                task.expirationHandler = { Task { @MainActor in model.pauseSync() } }
-                await model.bootstrap(); model.startSync(trigger: "Background backstop"); await model.awaitSync()
+                var expired = false
+                task.expirationHandler = { Task { @MainActor in expired = true; model.pauseSync() } }
+                await model.bootstrap()
+                guard !expired else { task.setTaskCompleted(success: false); return }
+                model.startSync(trigger: "Background backstop"); await model.awaitSync()
                 task.setTaskCompleted(success: model.currentRun?.status == "complete")
             }
         }
         return true
+    }
+    func applicationProtectedDataDidBecomeAvailable(_ application: UIApplication) {
+        if application.applicationState == .active { model.foreground() }
+        else { Task { await model.bootstrap() } }
     }
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) { Task { await model.bootstrap(); await model.registerPush(deviceToken) } }
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) { model.pushStatus = "Unavailable on this device" }
@@ -40,10 +47,33 @@ import UserNotifications
         #if DEBUG
         try? DeviceValidation.write(["received_at": HealthDates.timestamp(Date()), "kind": "remote-notification"], name: "push.json")
         #endif
-        Task { @MainActor in
-            await model.bootstrap(); model.startSync(trigger: "Agent requested sync"); await model.awaitSync()
-            completionHandler(model.currentRun?.status == "complete" ? .newData : .failed)
+        model.backgroundSync(trigger: "Agent requested sync") { completionHandler($0 ? .newData : .noData) }
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async { await model.bootstrap(); model.startSync(trigger: "Notification opened") }
+}
+
+// A push has a short wall-clock budget. Completion must not wait for a stalled
+// HealthKit query or network cleanup; both continue to respect cancellation.
+@MainActor final class BackgroundSyncSlice {
+    private var finished = false
+    private var workTask: Task<Void, Never>?
+    private var deadlineTask: Task<Void, Never>?
+    private let completion: (Bool) -> Void
+    private init(completion: @escaping (Bool) -> Void) { self.completion = completion }
+    static func run(budget: Duration, work: @escaping @MainActor () async -> Bool, expired: @escaping @MainActor () -> Void, completion: @escaping (Bool) -> Void) {
+        let slice = BackgroundSyncSlice(completion: completion)
+        slice.workTask = Task { let result = await work(); slice.finish(result) }
+        slice.deadlineTask = Task {
+            do { try await Task.sleep(for: budget) } catch { return }
+            guard !slice.finished else { return }
+            expired(); slice.finish(false)
         }
     }
-    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async { await model.bootstrap(); model.startSync(trigger: "Notification opened") }
+    private func finish(_ success: Bool) {
+        guard !finished else { return }; finished = true
+        workTask?.cancel(); deadlineTask?.cancel()
+        workTask = nil; deadlineTask = nil
+        completion(success)
+    }
 }

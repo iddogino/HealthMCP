@@ -1,5 +1,8 @@
 import type {OAuthHelpers} from '@cloudflare/workers-oauth-provider';
 export interface Env {
+  MAX_USER_BYTES?: string; MAX_USER_OBJECTS?: string;
+  MAX_GLOBAL_BYTES?: string; MAX_GLOBAL_OBJECTS?: string;
+  MAX_ACCOUNTS?: string; MAX_USER_WRITES_PER_MINUTE?: string; MAX_GLOBAL_WRITES_PER_MINUTE?: string;
   DB: D1Database;
   BLOBS: R2Bucket;
   OAUTH_KV: KVNamespace;
@@ -15,6 +18,7 @@ export interface Env {
   APNS_PRIVATE_KEY?: string;
 }
 export interface User {
+  privacy_revision: number;
   id: string; device_pubkey: string; created_at: number;
   apns_token: string | null; apns_environment: string;
   last_sync_request_at:number|null; last_synced_at: number | null; cache_generation: number; state: string;
@@ -22,7 +26,7 @@ export interface User {
 }
 export interface AuthProps { userId: string; connectionId: string; scope: string[] }
 export class HttpError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  constructor(public status: number, message: string, public retryAfter?: number) { super(message); }
 }
 export const now = () => Math.floor(Date.now() / 1000);
 export const json = (body: unknown, status = 200) => Response.json(body, {status, headers: {'Cache-Control': 'no-store'}});

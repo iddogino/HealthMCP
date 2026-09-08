@@ -5,17 +5,17 @@ export const CHECK37 = BASE32 + '*~$=U';
 export const MAX_ENVELOPE_BYTES = 16 * 1024 * 1024;
 export type Envelope = {v: 1; alg: 'A256GCM'; kdf: 'sha256'; iv: string; ct: string};
 export function checksum(payload: string): string {
-  if (!/^[0-9A-HJKMNP-TV-Z]{16}$/.test(payload)) throw new Error('Invalid key characters');
+  if (!/^(?:[0-9A-HJKMNP-TV-Z]{16}|[0-9A-HJKMNP-TV-Z]{26})$/.test(payload)) throw new Error('Invalid key characters');
   return CHECK37[[...payload].reduce((sum, c) => (sum * 32 + BASE32.indexOf(c)) % 37, 0)];
 }
 export function normalizeKey(key: string): string {
   const s = key.toUpperCase().replace(/[-\s]/g, '');
-  if (s.length !== 17 || checksum(s.slice(0, 16)) !== s[16]) throw new Error('Invalid key checksum');
+  if (![17,27].includes(s.length) || checksum(s.slice(0, -1)) !== s.at(-1)) throw new Error('Invalid key checksum');
   return s;
 }
 export function formatKey(key: string): string {
   const s = normalizeKey(key);
-  return `${s.slice(0,4)}-${s.slice(4,8)}-${s.slice(8,12)}-${s.slice(12,16)}-${s[16]}`;
+  return s.slice(0,-1).match(/.{1,4}/g)!.join('-')+'-'+s.at(-1);
 }
 export function validDay(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value && value >= '1900-01-01' && value <= '2200-12-31';

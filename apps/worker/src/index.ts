@@ -1,7 +1,8 @@
 import {OAuthProvider} from '@cloudflare/workers-oauth-provider';
 import {authenticateDevice,parseJSON,rateLimit,readBody,verifySignature} from './security';
 import {authorize,pairDevice,pollPairing} from './pairing';
-import {blob,resetCache,updateSeries,upload,deleteSeries} from './storage';
+import {blob,resetCache,updateSeries,upload,deleteSeries,updateCoverage} from './storage';
+import {admitDevice} from './limits';
 import {scheduled} from './push';
 import {handleMcp} from './mcp';
 import {type Env,type User,type AuthProps,HttpError,json,now} from './types';
@@ -24,23 +25,24 @@ async function api(request:Request,env:Env):Promise<Response> {
     const data=parseJSON<{device_pubkey:string}>(body);
     if(typeof data.device_pubkey!=='string' || data.device_pubkey.length>100) throw new HttpError(400,'P-256 public key required');
     await verifySignature(request,body,data.device_pubkey);
-    const id='u_'+crypto.randomUUID();
-    await env.DB.prepare('INSERT OR IGNORE INTO users(id,device_pubkey,created_at) VALUES(?,?,?)').bind(id,data.device_pubkey,now()).run();
-    const user=await env.DB.prepare('SELECT id,cache_generation FROM users WHERE device_pubkey=?').bind(data.device_pubkey).first();
+    await rateLimit(env,'register:global',200,86400);
+    const {user}=await admitDevice(env,data.device_pubkey,'u_'+crypto.randomUUID(),now());
     return json(user,201);
   }
   const user=await authenticateDevice(request,env,body);
   if(path==='/v1/upload' && ['PUT','DELETE'].includes(request.method)) return upload(request,env,user,body);
+  if(path==='/v1/chunk-coverage' && request.method==='PUT') return updateCoverage(env,user,body);
   if(path==='/v1/series' && request.method==='PUT') return updateSeries(env,user,body);
   if(path==='/v1/series' && request.method==='DELETE') return deleteSeries(env,user,url.searchParams.get('series')??'');
   if(path==='/v1/sync/complete' && request.method==='POST') {
-    await env.DB.prepare('UPDATE users SET last_synced_at=?,pending_sync_at=NULL WHERE id=?').bind(now(),user.id).run();
+    const completed=await env.DB.prepare("UPDATE users SET last_synced_at=?,pending_sync_at=NULL WHERE id=? AND cache_generation=? AND privacy_revision=? AND state='active'").bind(now(),user.id,user.cache_generation,user.privacy_revision).run();
+    if(!completed.meta.changes) throw new HttpError(409,'Cache changed; retry sync');
     return json({last_synced_at:now()});
   }
   if(path==='/v1/status' && request.method==='GET') {
     const catalog=await env.DB.prepare('SELECT series,first_day,last_day,total_samples,last_synced_at FROM series WHERE user_id=? ORDER BY series').bind(user.id).all();
-    const usage=await env.DB.prepare('SELECT COUNT(*) AS chunks,COALESCE(SUM(bytes),0) AS bytes FROM chunks WHERE user_id=?').bind(user.id).first();
-    return json({user_id:user.id,last_synced_at:user.last_synced_at,pending_sync_at:user.pending_sync_at,cache_generation:user.cache_generation,series:catalog.results,usage,push_status:user.last_push_status,push_registered:Boolean(user.apns_token)});
+    const usage=await env.DB.prepare('SELECT objects AS chunks,bytes FROM cache_usage WHERE user_id=?').bind(user.id).first();
+    return json({user_id:user.id,last_synced_at:user.last_synced_at,pending_sync_at:user.pending_sync_at,cache_generation:user.cache_generation,privacy_revision:user.privacy_revision,series:catalog.results,usage,push_status:user.last_push_status,push_registered:Boolean(user.apns_token)});
   }
   if(path==='/v1/apns' && request.method==='POST') {
     const value=parseJSON<{token:string;environment:string}>(body);
@@ -54,7 +56,7 @@ async function api(request:Request,env:Env):Promise<Response> {
     await env.DB.prepare('UPDATE connections SET revoked_at=? WHERE user_id=? AND id=?').bind(now(),user.id,path.slice('/v1/connections/'.length)).run();
     return json({revoked:true});
   }
-  if(path==='/v1/cache/reset' && request.method==='POST') return resetCache(env,user);
+  if(path==='/v1/cache/reset' && request.method==='POST') return resetCache(env,user,false,parseJSON<{operation_id?:string}>(body||'{}').operation_id);
   if(path==='/v1/account' && request.method==='DELETE') return resetCache(env,user,true);
   throw new HttpError(404,'Not found');
 }
@@ -76,11 +78,17 @@ export default {
       }
       if(request.method==='OPTIONS') response=new Response(null,{status:204});
       else {
-        if(url.pathname==='/register') await rateLimit(env,'dcr:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
+        if(url.pathname==='/register' && request.method==='POST') {
+          await rateLimit(env,'dcr:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
+          await rateLimit(env,'dcr:global',200,86400);
+          const slots=await env.DB.prepare("INSERT INTO admission_counters(name,count) VALUES('oauth_clients',1) ON CONFLICT(name) DO UPDATE SET count=count+1 WHERE count<10000 RETURNING count").first();
+          if(!slots) throw new HttpError(503,'Client registration is at capacity. Contact support@healthmcp.cc.');
+        }
         response=await provider(env).fetch(request,env,ctx);
       }
     } catch(error) {
       response=json({error:error instanceof HttpError?error.message:'The request could not be completed'},error instanceof HttpError?error.status:500);
+      if(error instanceof HttpError && error.retryAfter) response.headers.set('Retry-After',String(error.retryAfter));
       if(!(error instanceof HttpError)) console.error('request_failed',env.PUBLIC_ORIGIN.startsWith('http://localhost')?String(error):error instanceof Error?error.name:'unknown');
     }
     const headers=new Headers(response.headers);

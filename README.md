@@ -18,6 +18,7 @@ The app reads Apple Health, encrypts each JSON chunk on the phone, and uploads c
 | `apps/worker` | Device authentication, encrypted R2 storage, D1 catalog, OAuth pairing, six MCP tools, APNs |
 | `apps/site` | Static React/Vinext marketing, setup, privacy, and support pages |
 | `packages/protocol` | Shared series catalog and Node/Python decryption helpers |
+| `packages/client` | Trusted local stdio MCP connector, shipped inside the signed iPhone app |
 | `scripts` | Deployment validation, native crypto interoperability, device validation runner |
 | `docs` | Original spec, wire decisions, operations, and validation evidence |
 
@@ -43,6 +44,7 @@ The local Worker listens on `http://localhost:8787`. Its checked-in signing secr
 Generate and open the iOS project:
 
 ```sh
+npm run build:client
 npm run ios:generate
 open apps/ios/HealthMCP.xcodeproj
 ```
@@ -56,6 +58,8 @@ npm run typecheck
 npm run typecheck:site
 npm test
 npm run test:e2e
+npm run build:client
+npm run test:client
 ```
 
 Run the native `HealthMCP` test scheme in Xcode, or:
@@ -108,8 +112,8 @@ The site uses a separately named Wrangler configuration because Vinext's automat
 2. Save the private key securely and acknowledge it.
 3. Start the first historical backfill. Recent data uploads first and is usable while history continues. Keep the app open for a large history.
 4. Follow live progress, pause/resume if needed, and review Sync history. Saved work survives closing the app.
-5. Add the MCP endpoint to a compatible client and approve its pairing code in Agents.
-6. Configure `HEALTHMCP_KEY` in that client's private code environment, never in chat or tool arguments.
+5. Export the trusted client from Settings, transfer it to your computer, and follow its README to pair it in Agents.
+6. Save the key privately using the client’s `key` command, run `check`, and add the client as a local stdio MCP server. See [client setup](packages/client/README.md). Never put the key in chat or tool arguments.
 
 Optional data groups and GPS routes are controlled in Settings. Disabling them removes the corresponding encrypted copies. Key rotation revokes connections and rebuilds the cache. Account deletion removes active server data and local keys; Apple Health is unchanged.
 
@@ -117,4 +121,6 @@ Optional data groups and GPS routes are controlled in Settings. Disabling them r
 
 V1 has read-only HealthKit access, individual agent revocation, incremental paginated backfills with live catalog publication, four concurrent chunk uploads, sync history, on-device summaries, and best-effort background/push refresh. Indexing and serialization run off the UI thread. See [sync performance](docs/sync-performance.md) for the real-device validation and measurements. No analytics or advertising SDK is included.
 
-V1's 16-character random key contains 80 bits of entropy, plus a checksum. AES-256 is the cipher, not a claim of 256-bit secret entropy. ECG and GPS are opt-in because payload size varies. Keys do not migrate to another phone; recovery means a new identity and backfill. iOS controls background execution and notification delivery.
+New keys contain 26 random Crockford symbols (130 bits) plus a checksum. Legacy 80-bit keys still decrypt existing caches; rotating a key explicitly generates the stronger format and rebuilds the cache. ECG and GPS are opt-in because payload size varies. Keys do not migrate to another phone; recovery means a new identity and backfill. iOS controls background execution and notification delivery.
+
+Build 9 addresses the September 8 release-readiness review. See [fixes and remaining launch gates](docs/release-fixes-2026-09-08.md). Storage is bounded per account and globally; privacy cleanup remains available at capacity.

@@ -3,13 +3,15 @@ import {execFileSync} from 'node:child_process';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {decrypt} from '../packages/protocol/decrypt.mjs';
 execFileSync('swiftc',['-module-cache-path','/tmp/healthmcp-swift-cache','apps/ios/HealthMCP/Core/Crypto.swift','scripts/crypto-interop.swift','-lz','-o','artifacts/crypto-interop'],{stdio:'pipe'});
-const vector=JSON.parse(execFileSync('artifacts/crypto-interop',{encoding:'utf8'}));
+for (const argumentsForKey of [[],['--legacy']]) {
+const vector=JSON.parse(execFileSync('artifacts/crypto-interop',argumentsForKey,{encoding:'utf8'}));
 assert.deepEqual(decrypt(vector.envelope,vector.key,vector.path),vector.expected);
 writeFileSync('artifacts/swift-crypto-vector.json',JSON.stringify(vector.envelope));
 const value=execFileSync('.venv/bin/python',['packages/protocol/decrypt.py','artifacts/swift-crypto-vector.json',vector.path],{env:{...process.env,HEALTHMCP_KEY:vector.key},encoding:'utf8'});
 assert.deepEqual(JSON.parse(value),vector.expected);
+}
 const node=JSON.parse(readFileSync('apps/ios/HealthMCPTests/crypto-v1.json','utf8'));
 writeFileSync('artifacts/node-crypto-vector.json',JSON.stringify(node.envelope));
 assert.equal(JSON.parse(execFileSync('.venv/bin/python',['packages/protocol/decrypt.py','artifacts/node-crypto-vector.json',node.path],{env:{...process.env,HEALTHMCP_KEY:node.key},encoding:'utf8'})),'ok');
-writeFileSync('artifacts/crypto-interop-report.json',JSON.stringify({passed:true,checks:['Swift encrypted payload decrypted by Node','Swift encrypted payload decrypted by Python','Node encrypted payload decrypted by Python'],completed_at:new Date().toISOString()},null,2));
+writeFileSync('artifacts/crypto-interop-report.json',JSON.stringify({passed:true,checks:['Swift 130-bit and legacy keys decrypted by Node','Swift 130-bit and legacy keys decrypted by Python','Node encrypted payload decrypted by Python'],completed_at:new Date().toISOString()},null,2));
 console.log('PASS Swift → Node, Swift → Python, Node → Python AES-GCM + gzip interoperability');

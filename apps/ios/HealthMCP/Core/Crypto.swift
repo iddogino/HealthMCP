@@ -8,16 +8,21 @@ enum HealthMCPError: LocalizedError {
     var errorDescription: String? { if case .message(let text) = self { return text }; return nil }
 }
 
-enum Keychain {
-    static let service = "cc.healthmcp.app"
-    static func read(_ name: String) throws -> Data? {
+protocol SecureStoring: Sendable {
+    func read(_ name: String) throws -> Data?
+    func set(_ name: String, _ value: Data) throws
+    func remove(_ name: String) throws
+}
+struct KeychainStore: SecureStoring {
+    var service = "cc.healthmcp.app"
+    func read(_ name: String) throws -> Data? {
         var item: CFTypeRef?
         let status = SecItemCopyMatching([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: name, kSecReturnData: true, kSecMatchLimit: kSecMatchLimitOne] as CFDictionary, &item)
         if status == errSecItemNotFound { return nil }
         guard status == errSecSuccess else { throw HealthMCPError.message("The device is locked. Unlock it to access your private keys.") }
         return item as? Data
     }
-    static func set(_ name: String, _ value: Data) throws {
+    func set(_ name: String, _ value: Data) throws {
         let query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: name]
         let status = SecItemUpdate(query as CFDictionary, [kSecValueData: value] as CFDictionary)
         if status == errSecItemNotFound {
@@ -26,26 +31,35 @@ enum Keychain {
         }
         guard status == errSecSuccess else { throw HealthMCPError.message("Could not update secure device storage.") }
     }
-    static func remove(_ name: String) { SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: name] as CFDictionary) }
+    func remove(_ name: String) throws {
+        let status = SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: name] as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else { throw HealthMCPError.message("Could not remove secure device storage. Unlock your iPhone and retry.") }
+    }
+}
+enum Keychain {
+    static let service = "cc.healthmcp.app"
+    static func read(_ name: String) throws -> Data? { try KeychainStore().read(name) }
+    static func set(_ name: String, _ value: Data) throws { try KeychainStore().set(name, value) }
+    static func remove(_ name: String) { try? KeychainStore().remove(name) }
 }
 
 struct DeviceIdentity: Sendable {
     private let signData: @Sendable (Data) throws -> Data
     let publicKey: Data
-    init() throws {
+    init(storage: any SecureStoring = KeychainStore()) throws {
         #if targetEnvironment(simulator)
         let key: P256.Signing.PrivateKey
-        if let saved = try Keychain.read("simulator-device-key") { key = try P256.Signing.PrivateKey(rawRepresentation: saved) }
-        else { key = P256.Signing.PrivateKey(); try Keychain.set("simulator-device-key", key.rawRepresentation) }
+        if let saved = try storage.read("simulator-device-key") { key = try P256.Signing.PrivateKey(rawRepresentation: saved) }
+        else { key = P256.Signing.PrivateKey(); try storage.set("simulator-device-key", key.rawRepresentation) }
         publicKey = key.publicKey.x963Representation
         signData = { try key.signature(for: $0).rawRepresentation }
         #else
         let key: SecureEnclave.P256.Signing.PrivateKey
-        if let saved = try Keychain.read("device-key") { key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: saved) }
+        if let saved = try storage.read("device-key") { key = try SecureEnclave.P256.Signing.PrivateKey(dataRepresentation: saved) }
         else {
             guard SecureEnclave.isAvailable, let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, .privateKeyUsage, nil) else { throw HealthMCPError.message("Secure Enclave is unavailable on this device.") }
             key = try SecureEnclave.P256.Signing.PrivateKey(accessControl: access)
-            try Keychain.set("device-key", key.dataRepresentation)
+            try storage.set("device-key", key.dataRepresentation)
         }
         publicKey = key.publicKey.x963Representation
         signData = { try key.signature(for: $0).rawRepresentation }
@@ -66,7 +80,7 @@ enum HealthCrypto {
     static let alphabet = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ")
     static let checkAlphabet = Array("0123456789ABCDEFGHJKMNPQRSTVWXYZ*~$=U")
     static func checksum(_ payload: String) throws -> Character {
-        guard payload.count == 16 else { throw HealthMCPError.message("Invalid key length.") }
+        guard [16, 26].contains(payload.count) else { throw HealthMCPError.message("Invalid key length.") }
         var remainder = 0
         for character in payload {
             guard let value = alphabet.firstIndex(of: character) else { throw HealthMCPError.message("Invalid key character.") }
@@ -75,22 +89,26 @@ enum HealthCrypto {
         return checkAlphabet[remainder]
     }
     static func generateKey() throws -> String {
-        var random = [UInt8](repeating: 0, count: 16)
+        var random = [UInt8](repeating: 0, count: 26)
         guard SecRandomCopyBytes(kSecRandomDefault, random.count, &random) == errSecSuccess else { throw HealthMCPError.message("Could not generate a secure key.") }
         let payload = String(random.map { alphabet[Int($0 & 31)] })
         return payload + String(try checksum(payload))
     }
     static func normalize(_ input: String) throws -> String {
         let key = input.uppercased().filter { !$0.isWhitespace && $0 != "-" }
-        guard key.count == 17, try checksum(String(key.prefix(16))) == key.last else { throw HealthMCPError.message("The private key checksum does not match.") }
+        guard [17, 27].contains(key.count), try checksum(String(key.dropLast())) == key.last else { throw HealthMCPError.message("The private key checksum does not match.") }
         return key
     }
     static func formatted(_ key: String) -> String {
         let chars = Array(key)
-        guard chars.count == 17 else { return key }
-        return stride(from: 0, to: 16, by: 4).map { String(chars[$0..<$0+4]) }.joined(separator: "-") + "-" + String(chars[16])
+        guard [17, 27].contains(chars.count) else { return key }
+        let length = chars.count - 1
+        return stride(from: 0, to: length, by: 4).map { String(chars[$0..<min($0+4, length)]) }.joined(separator: "-") + "-" + String(chars[length])
     }
-    static func derive(_ key: String) throws -> SymmetricKey { SymmetricKey(data: SHA256.hash(data: Data(("healthmcp/v1:" + (try normalize(key))).utf8))) }
+    static func derive(_ key: String) throws -> SymmetricKey {
+        let normalized = try normalize(key), domain = normalized.count == 27 ? "healthmcp/v2:" : "healthmcp/v1:"
+        return SymmetricKey(data: SHA256.hash(data: Data((domain + normalized).utf8)))
+    }
     static func encrypt(_ json: Data, key: String, path: String) throws -> Envelope {
         let compressed = try Gzip.compress(json)
         let sealed = try AES.GCM.seal(compressed, using: derive(key), authenticating: Data(path.utf8))

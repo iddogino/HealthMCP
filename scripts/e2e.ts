@@ -65,7 +65,7 @@ try {
   const forged=other.signed('GET','/v1/status');forged.headers['X-User-ID']=primary.id;assert.equal((await fetch(base+'/v1/status',forged)).status,401);passed('Cross-user device isolation');
   const fixture=[{t0:'2026-09-01T06:00:00Z',t1:'2026-09-01T07:00:00Z',v:812,src:'E2E synthetic'}];
   for(const [series,period,value] of [['check','single','ok'],['steps','2026-09-01',fixture],['body_mass','2026-09',[{t:'2026-09-01T12:00:00Z',v:72,src:'E2E synthetic'}]],['profile','single',{biological_sex:'notSet'}],['daily_summary','2026-09',[{d:'2026-09-01',steps:812}]],['workouts','2026-09-01/00000000-0000-4000-8000-000000000001',{type:'running',duration_s:60,route:[]}]] as const) {
-    const envelope=encrypt(value,objectPath(primary.id,series,period));const response=await primary.call('PUT','/v1/upload?'+new URLSearchParams({series,period}),envelope);assert.equal(response.status,200,await response.text());
+    const envelope=encrypt(value,objectPath(primary.id,series,period));const response=await primary.call('PUT','/v1/upload?'+new URLSearchParams({series,period,first_day:'2026-09-01',last_day:'2026-09-01'}),envelope);assert.equal(response.status,200,await response.text());
     if(series!=='check') assert.equal((await primary.call('PUT','/v1/series',{series,first_day:'2026-09-01',last_day:'2026-09-01',total_samples:1})).status,200);
   }
   assert.equal((await primary.call('POST','/v1/sync/complete',{})).status,200);passed('Encrypted daily, monthly, workout, profile, summary and key-check uploads');

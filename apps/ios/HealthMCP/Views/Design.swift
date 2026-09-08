@@ -35,7 +35,7 @@ struct PrivateKeyView: View {
     var body: some View {
         VStack(spacing: 22) {
             if let image = qrImage(key) { Image(uiImage: image).interpolation(.none).resizable().scaledToFit().frame(width: 180, height: 180).padding(16).background(.white, in: RoundedRectangle(cornerRadius: 20)).accessibilityLabel("Private key QR code") }
-            Text(HealthCrypto.formatted(key)).font(.system(.title3, design: .monospaced, weight: .semibold)).foregroundStyle(Brand.accent).minimumScaleFactor(0.7).lineLimit(1).textSelection(.enabled).accessibilityIdentifier("private-key")
+            Text(HealthCrypto.formatted(key)).font(.system(.title3, design: .monospaced, weight: .semibold)).foregroundStyle(Brand.accent).fixedSize(horizontal: false, vertical: true).textSelection(.enabled).accessibilityIdentifier("private-key")
             Button {
                 UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: HealthCrypto.formatted(key)]], options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)])
                 copiedAt = Date()

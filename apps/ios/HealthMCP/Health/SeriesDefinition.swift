@@ -15,7 +15,7 @@ enum HealthDates {
     }
 }
 struct SeriesDefinition: Identifiable, Sendable {
-    enum Kind: Sendable { case quantity, cumulative, category, correlation, workout, ecg }
+    enum Kind: Sendable { case quantity, cumulative, category, correlation, workout, ecg, route }
     let id: String, hkName: String, unitName: String, chunk: String, group: String
     let kind: Kind
     var title: String { id.split(separator: "_").map { $0.capitalized }.joined(separator: " ") }
@@ -26,6 +26,7 @@ struct SeriesDefinition: Identifiable, Sendable {
         case .correlation: return HKObjectType.correlationType(forIdentifier: .bloodPressure)
         case .workout: return HKObjectType.workoutType()
         case .ecg: return HKObjectType.electrocardiogramType()
+        case .route: return HKSeriesType.workoutRoute()
         }
     }
     var unit: HKUnit {
@@ -63,5 +64,6 @@ struct SeriesDefinition: Identifiable, Sendable {
         SeriesDefinition(id: "workouts", hkName: "Workout", unitName: "workout", chunk: "record", group: "default", kind: .workout),
         SeriesDefinition(id: "ecg", hkName: "Electrocardiogram", unitName: "µV", chunk: "record", group: "ecg", kind: .ecg)
     ] }
+    static let workoutRoutes = SeriesDefinition(id: "_workout_routes", hkName: "WorkoutRoute", unitName: "route", chunk: "record", group: "routes", kind: .route)
     static func enabled(groups: Set<String>) -> [SeriesDefinition] { all.filter { $0.group == "default" || groups.contains($0.group) } }
 }

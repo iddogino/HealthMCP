@@ -1,0 +1,130 @@
+{
+  "date": "2026-09-08",
+  "baseline_commit": "54eeaec",
+  "report": "docs/release-fixes-2026-09-08.md",
+  "review_findings": {
+    "implemented": 11,
+    "p1": 6,
+    "p2": 5
+  },
+  "deployment": {
+    "api_version": "6038bfae-15ef-4ca1-8ac1-6e5305fa97cc",
+    "site_version": "ed9d6203-ed1a-41ad-bb49-a1032c996758",
+    "d1_migrations": [
+      "0003_recovery_and_storage_limits.sql",
+      "0004_cache_counters_and_reconciliation.sql"
+    ],
+    "ios_version": "1.0.0",
+    "ios_build": "10",
+    "asc_build_id": "56685527-cbbf-420f-99c9-836b7429e661",
+    "processing_state": "VALID",
+    "distribution": "existing internal TestFlight group only",
+    "public_submission": false
+  },
+  "validation": {
+    "node_tests": {
+      "passed": 29,
+      "failed": 0,
+      "log": "artifacts/release-fixes-unit-tests.log"
+    },
+    "native_full_suites": [
+      {
+        "device": "iPhone 17 Pro",
+        "os": "iOS 26.3",
+        "passed": 29,
+        "failed": 0
+      },
+      {
+        "device": "iPhone SE (3rd generation)",
+        "os": "iOS 18.1",
+        "passed": 29,
+        "failed": 0
+      }
+    ],
+    "final_ui_suite": {
+      "device": "iPhone 17 Pro Max",
+      "passed": 3,
+      "failed": 0
+    },
+    "additional_legacy_repair_test": {
+      "passed": 1,
+      "failed": 0
+    },
+    "http_e2e": {
+      "local_passed": 21,
+      "production_passed": 21,
+      "production_log": "artifacts/release-fixes-production-e2e.log"
+    },
+    "packaged_client": {
+      "production_passed": true,
+      "covers": [
+        "browser OAuth",
+        "phone-consent API",
+        "callback state and PKCE",
+        "private key setup",
+        "decryption check",
+        "stdio discovery and query",
+        "OAuth refresh",
+        "revocation",
+        "fixture cleanup"
+      ],
+      "log": "artifacts/release-fixes-production-client-e2e.log",
+      "actual_assistant_conversation": false
+    },
+    "interop": [
+      "Swift to Node",
+      "Swift to Python",
+      "Node to Python"
+    ],
+    "key_formats": [
+      "130-bit v2 KDF",
+      "legacy 80-bit v1 KDF"
+    ],
+    "production_storage_invariants": {
+      "cache_bytes_consistent": 1,
+      "cache_objects_consistent": 1,
+      "quota_bytes_consistent": 1,
+      "quota_objects_consistent": 1
+    },
+    "signed_client": {
+      "build": "10",
+      "zip_sha256": "2d506563ffd1d34a6b8b9b43bbf830221c63156b8f668ed3a9b849638190a0ae",
+      "client_sha256": "08618483edec21a1e2abeb98bb326b83030b0293e7bc23dd8256be1aa456fda3",
+      "files": [
+        "README.md",
+        "SHA256SUMS",
+        "THIRD-PARTY-NOTICES.txt",
+        "decrypt.mjs",
+        "decrypt.py",
+        "healthmcp-client.mjs"
+      ],
+      "checksums_valid": true,
+      "signed_resource_matches": true
+    },
+    "typescript": "passed",
+    "site_build": "passed",
+    "large_text_key_ui": "inspected on iPhone SE",
+    "app_store_screenshots": {
+      "count": 3,
+      "pixels": "1320x2868",
+      "upload_state": "COMPLETE"
+    }
+  },
+  "app_store_readiness": {
+    "errors": 2,
+    "warnings": 0,
+    "infos": 2,
+    "blocking": 2
+  },
+  "open_gates": [
+    "full physical-device backfill/background/force-quit fallback",
+    "actual named assistant conversation",
+    "App Store Connect browser login and App Privacy publication",
+    "private review contact phone",
+    "initial App Store availability",
+    "support email forwarding destination and delivery",
+    "operator billing/notification configuration",
+    "VoiceOver and physical large-history measurements"
+  ],
+  "legacy_reconciliation": "bounded scheduled scan running; full bucket completion not yet verified"
+}

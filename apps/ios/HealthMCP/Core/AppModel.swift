@@ -8,11 +8,21 @@ import LocalAuthentication
 struct AgentConnection: Identifiable { let id: String, name: String; let createdAt: Date }
 struct PairingPreview: Identifiable { let id: String, name: String, host: String, code: String }
 
+struct PrivacyOperation: Codable, Sendable {
+    enum Kind: String, Codable { case group, routes, rotate, deleteAccount }
+    var id = UUID().uuidString
+    let kind: Kind
+    var group: String? = nil
+    var enabled = false
+    var newKey: String? = nil
+    var remoteConfirmed = false
+}
+
 @MainActor final class AppModel: ObservableObject {
     static let shared = AppModel()
     @Published var initialized = false
-    @Published var onboarded = UserDefaults.standard.bool(forKey: "onboarded")
-    @Published var onboardingStep = UserDefaults.standard.integer(forKey: "onboardingStep")
+    @Published var onboarded: Bool
+    @Published var onboardingStep: Int
     @Published var busy = false
     @Published var error: String?
     @Published var privateKey = ""
@@ -29,8 +39,8 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     @Published var pairingCode = ""
     @Published var pairingPreview: PairingPreview?
     @Published var selectedTab = 0
-    @Published var groups = Set(UserDefaults.standard.stringArray(forKey: "enabledGroups") ?? [])
-    @Published var routesEnabled = UserDefaults.standard.bool(forKey: "routesEnabled")
+    @Published var groups: Set<String>
+    @Published var routesEnabled: Bool
     @Published var pushStatus = "Not enabled"
     @Published var diagnosticResult: String?
     var api: APIClient?
@@ -39,9 +49,24 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     private var syncTask: Task<Void, Never>?
     private var observerCompletions: [() -> Void] = []
     private var syncAgain = false
-    private var hasBootstrapped = false
+    private var bootstrapTask: Task<Void, Never>?
+    @Published private(set) var startupError: String?
+    @Published private(set) var pendingPrivacy: PrivacyOperation?
+    private var privacyExecuting = false
+    private let preferences: UserDefaults
+    private let secureStorage: any SecureStoring
+    private let journalURL: URL?
+    private let apiBaseURL: URL
+    private let apiSession: URLSession
+    private let allowsBackgroundWork: Bool
+    init(preferences: UserDefaults = .standard, secureStorage: any SecureStoring = KeychainStore(), journalURL: URL? = nil, apiBaseURL: URL = APIClient.production, apiSession: URLSession = .shared, allowsBackgroundWork: Bool = true) {
+        self.preferences = preferences; self.secureStorage = secureStorage; self.journalURL = journalURL
+        self.apiBaseURL = apiBaseURL; self.apiSession = apiSession; self.allowsBackgroundWork = allowsBackgroundWork
+        onboarded = preferences.bool(forKey: "onboarded"); onboardingStep = preferences.integer(forKey: "onboardingStep")
+        groups = Set(preferences.stringArray(forKey: "enabledGroups") ?? []); routesEnabled = preferences.bool(forKey: "routesEnabled")
+    }
     var isSyncing: Bool { currentRun?.status == "running" }
-    var definitions: [SeriesDefinition] { SeriesDefinition.enabled(groups: groups) }
+    var definitions: [SeriesDefinition] { SeriesDefinition.enabled(groups: groups) + (routesEnabled ? [.workoutRoutes] : []) }
     var isDemo: Bool {
         #if DEBUG
         ProcessInfo.processInfo.arguments.contains("-ui-testing")
@@ -50,25 +75,52 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         #endif
     }
     func bootstrap() async {
-        guard !hasBootstrapped else { return }; hasBootstrapped = true
-        defer { initialized = true }
+        if let task = bootstrapTask { await task.value; return }
+        guard !initialized else { return }
+        startupError = nil
+        let task = Task { await initialize() }
+        bootstrapTask = task
+        await task.value
+        bootstrapTask = nil
+    }
+    private func initialize() async {
         do {
-            journal = try await SyncStore.open()
+            journal = try await SyncStore.open(url: journalURL)
+            if let data = try secureStorage.read("privacy-operation") { pendingPrivacy = try JSONDecoder().decode(PrivacyOperation.self, from: data) }
+            // A confirmed deletion must finish even if a crash removed only some credentials.
+            if pendingPrivacy?.kind == .deleteAccount, pendingPrivacy?.remoteConfirmed == true { try await clearLocalAccount() }
             history = try await journal!.history()
             for var interrupted in history where interrupted.status == "running" {
                 interrupted.status = "interrupted"; interrupted.finishedAt = Date(); interrupted.stage = "Ready to resume"; try await journal!.save(interrupted)
             }
             history = try await journal!.history()
-            let identity = try DeviceIdentity()
-            let userID = try Keychain.read("user-id").flatMap { String(data: $0, encoding: .utf8) } ?? ""
-            api = APIClient(identity: identity, userID: userID)
-            if let saved = try Keychain.read("health-key"), let key = String(data: saved, encoding: .utf8) { privateKey = try HealthCrypto.normalize(key) }
-            else { privateKey = try HealthCrypto.generateKey(); try Keychain.set("health-key", Data(privateKey.utf8)) }
+            #if targetEnvironment(simulator)
+            let identityExists = try secureStorage.read("simulator-device-key") != nil
+            #else
+            let identityExists = try secureStorage.read("device-key") != nil
+            #endif
+            var userID = try secureStorage.read("user-id").flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            // Preferences can migrate to a new phone; ThisDeviceOnly credentials cannot.
+            if !identityExists || userID.isEmpty {
+                guard pendingPrivacy == nil else { throw HealthMCPError.message("Privacy cleanup needs this device's original credentials. Please contact support@healthmcp.cc.") }
+                userID = ""; try secureStorage.remove("user-id")
+                onboarded = false; onboardingStep = 0
+                preferences.set(false, forKey: "onboarded"); preferences.set(0, forKey: "onboardingStep")
+                try await journal!.resetIndex()
+            }
+            let identity = try DeviceIdentity(storage: secureStorage)
+            api = APIClient(identity: identity, userID: userID, baseURL: apiBaseURL, session: apiSession)
+            if let saved = try secureStorage.read("health-key"), let key = String(data: saved, encoding: .utf8) { privateKey = try HealthCrypto.normalize(key) }
+            else if userID.isEmpty { privateKey = try HealthCrypto.generateKey(); try secureStorage.set("health-key", Data(privateKey.utf8)) }
+            else if pendingPrivacy == nil { try savePrivacy(PrivacyOperation(kind: .rotate, newKey: HealthCrypto.generateKey())) }
+            if pendingPrivacy == nil, let legacy = try secureStorage.read("pending-rotation"), let key = String(data: legacy, encoding: .utf8) { try savePrivacy(PrivacyOperation(kind: .rotate, newKey: HealthCrypto.normalize(key))) }
             await reader.setRoutesEnabled(routesEnabled)
             sampleCount = try await journal!.totalSamples()
-            if isDemo { configureDemo(); return }
-            if let pending = try Keychain.read("pending-rotation"), let key = String(data: pending, encoding: .utf8), !userID.isEmpty { try await completeRotation(key) }
-            if onboarded { await installObservers(); startSync(trigger: "App opened"); Task { await refreshStatus() } }
+            if isDemo { configureDemo(); initialized = true; return }
+            if pendingPrivacy != nil { await retryPrivacy() }
+            if api == nil { await initialize(); return }
+            initialized = true
+            if pendingPrivacy == nil, onboarded, allowsBackgroundWork { await installObservers(); if UIApplication.shared.applicationState == .active { startSync(trigger: "App opened"); Task { await refreshStatus() } } }
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-device-e2e") { Task { await awaitSync(); await DeviceValidation.run(model:self) } }
             if ProcessInfo.processInfo.arguments.contains("-device-e2e-incremental") {
@@ -82,36 +134,59 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
             }
             if ProcessInfo.processInfo.arguments.contains("-device-e2e-finish") { Task { await DeviceValidation.finish(model:self) } }
             #endif
-        } catch { self.error = error.localizedDescription }
+        } catch { startupError = error.localizedDescription; initialized = false }
     }
     func prepareHealth() async {
-        guard !busy else { return }; busy = true; defer { busy = false }
+        guard !busy, pendingPrivacy == nil else { return }; busy = true; defer { busy = false }
         do {
             guard var client = api else { throw HealthMCPError.message("Secure storage is not ready. Restart the app after unlocking your iPhone.") }
             if client.userID.isEmpty {
                 let result = try await client.json("POST", "/v1/register", ["device_pubkey": client.identity.publicKey.base64EncodedString()])
                 guard let id = result["id"] as? String else { throw HealthMCPError.message("Device registration failed.") }
-                client.userID = id; api = client; try Keychain.set("user-id", Data(id.utf8))
+                client.userID = id; api = client; try secureStorage.set("user-id", Data(id.utf8))
             }
             try await reader.requestAuthorization(definitions: definitions)
-            onboardingStep = 1; UserDefaults.standard.set(1, forKey: "onboardingStep"); keyVisible = true
+            onboardingStep = 1; preferences.set(1, forKey: "onboardingStep"); keyVisible = true
         } catch { self.error = error.localizedDescription }
     }
-    func acceptKey() { keyVisible = false; onboardingStep = 2; UserDefaults.standard.set(2, forKey: "onboardingStep") }
+    func acceptKey() { keyVisible = false; onboardingStep = 2; preferences.set(2, forKey: "onboardingStep") }
     func startFirstSync() async {
-        onboardingStep = 3; UserDefaults.standard.set(3, forKey: "onboardingStep")
+        onboardingStep = 3; preferences.set(3, forKey: "onboardingStep")
         await installObservers(); startSync(trigger: "Initial backfill")
     }
-    func finishOnboarding() { onboarded = true; UserDefaults.standard.set(true, forKey: "onboarded"); keyVisible = false }
+    func finishOnboarding() { onboarded = true; preferences.set(true, forKey: "onboarded"); keyVisible = false }
     func foreground() {
-        guard initialized, onboarded, !isDemo else { return }
-        startSync(trigger: "App opened"); Task { await refreshStatus() }
+        guard !isDemo else { return }
+        Task {
+            await bootstrap()
+            guard initialized else { return }
+            if pendingPrivacy != nil { await retryPrivacy(); return }
+            if onboarded, allowsBackgroundWork { startSync(trigger: "App opened"); await refreshStatus() }
+        }
     }
     func startSync(trigger: String) {
-        guard !isDemo, api?.userID.isEmpty == false else { return }
-        if isSyncing { if trigger != "App opened" { syncAgain = true }; return }
+        guard initialized, !isDemo, api?.userID.isEmpty == false else { return }
+        guard pendingPrivacy == nil, !privacyExecuting else { return }
+        if syncTask != nil { if trigger != "App opened" { syncAgain = true }; return }
         currentRun = SyncRun(trigger: trigger)
         syncTask = Task { await runSync() }
+    }
+    func backgroundSync(trigger: String, completion: @escaping (Bool) -> Void) {
+        let existingRun = isSyncing ? currentRun?.id : nil
+        var ownedRun: String?
+        BackgroundSyncSlice.run(budget: .seconds(23), work: { [weak self] in
+            guard let self else { return false }
+            await self.bootstrap()
+            guard !Task.isCancelled, self.initialized else { return false }
+            self.startSync(trigger: trigger)
+            if existingRun == nil { ownedRun = self.currentRun?.id }
+            await self.awaitSync()
+            return self.currentRun?.status == "complete"
+        }, expired: { [weak self] in
+            guard let self else { return }
+            if UIApplication.shared.applicationState != .active, let ownedRun, self.currentRun?.id == ownedRun { self.pauseSync() }
+            self.scheduleBackstop(after: 60)
+        }, completion: completion)
     }
     func pauseSync() { syncAgain = false; syncTask?.cancel() }
     func awaitSync() async { await syncTask?.value }
@@ -145,10 +220,18 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         }
         defer { responsiveness.cancel() }
         #endif
-        let engine = SyncEngine(store: journal, reader: reader, client: client, key: privateKey, run: initial) { [weak self] run in
-            self?.currentRun = run
+        let completed: SyncRun
+        do {
+            let syncClient = try await client.forSync()
+            try Task.checkCancellation()
+            let engine = SyncEngine(store: journal, reader: reader, client: syncClient, key: privateKey, run: initial) { [weak self] run in self?.currentRun = run }
+            completed = await engine.sync(definitions: definitions)
+        } catch {
+            var failed = initial; failed.status = Task.isCancelled ? "paused" : "failed"
+            failed.stage = "Progress saved. Resume when the service is available."; failed.finishedAt = Date()
+            if !Task.isCancelled { failed.errors = [error.localizedDescription] }
+            try? await journal.save(failed); completed = failed
         }
-        let completed = await engine.sync(definitions: definitions)
         liveStatus.cancel()
         await liveStatus.value
         currentRun = completed
@@ -159,7 +242,8 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         UIApplication.shared.isIdleTimerDisabled = false
         observerCompletions.forEach { $0() }; observerCompletions.removeAll()
         scheduleBackstop()
-        await Task { await refreshStatus() }.value
+        if !Task.isCancelled { await refreshStatus() }
+        syncTask = nil
         if syncAgain { syncAgain = false; startSync(trigger: "Health data changed") }
     }
     func refreshStatus(includeConnections: Bool = true) async {
@@ -184,6 +268,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         } catch { if !Task.isCancelled, !isSyncing { pushStatus = "Service unavailable" } }
     }
     func previewPairing() async {
+        guard !busy, pendingPrivacy == nil else { return }
         if isDemo { pairingPreview = PairingPreview(id: "demo-pairing", name: "Demo Agent", host: "localhost", code: pairingCode); return }
         busy = true; defer { busy = false }
         do {
@@ -192,7 +277,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         } catch { self.error = error.localizedDescription }
     }
     func approvePairing() async {
-        guard let preview = pairingPreview else { return }; busy = true; defer { busy = false }
+        guard !busy, pendingPrivacy == nil, let preview = pairingPreview else { return }; busy = true; defer { busy = false }
         if isDemo { connections = [AgentConnection(id: preview.id, name: preview.name, createdAt: Date())]; pairingPreview = nil; pairingCode = ""; return }
         do { _ = try await api?.json("POST", "/v1/pair/approve", ["code": preview.code, "pairing_id": preview.id]); pairingPreview = nil; pairingCode = ""; await refreshStatus() } catch { self.error = error.localizedDescription }
     }
@@ -210,31 +295,9 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         do { _ = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]); UIApplication.shared.registerForRemoteNotifications() } catch { self.error = error.localizedDescription }
     }
     func setGroup(_ group: String, enabled: Bool) async {
-        pauseSync(); await awaitSync(); busy = true; defer { busy = false }
-        do {
-            if enabled { groups.insert(group) }
-            else {
-                for series in Set(SeriesDefinition.all.filter { $0.group == group }.map(\.id)) {
-                    _ = try await api?.json("DELETE", "/v1/series?series="+series)
-                    try await journal?.clearSeries(series)
-                }
-                groups.remove(group)
-            }
-            UserDefaults.standard.set(Array(groups), forKey: "enabledGroups")
-            try await reader.requestAuthorization(definitions: definitions)
-            await installObservers(); startSync(trigger: "Data settings changed")
-        } catch { self.error = error.localizedDescription }
+        await performPrivacy(PrivacyOperation(kind: .group, group: group, enabled: enabled))
     }
-    func setRoutes(_ enabled: Bool) async {
-        pauseSync(); await awaitSync(); busy = true; defer { busy = false }
-        do {
-            _ = try await api?.json("DELETE", "/v1/series?series=workouts")
-            try await journal?.clearSeries("workouts")
-            routesEnabled = enabled; await reader.setRoutesEnabled(enabled); UserDefaults.standard.set(enabled, forKey: "routesEnabled")
-            try await reader.requestAuthorization(definitions: definitions)
-            startSync(trigger: "Workout detail changed")
-        } catch { self.error = error.localizedDescription }
-    }
+    func setRoutes(_ enabled: Bool) async { await performPrivacy(PrivacyOperation(kind: .routes, enabled: enabled)) }
     func registerPush(_ token: Data) async {
         guard let api, !api.userID.isEmpty else { return }
         #if DEBUG
@@ -245,8 +308,14 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         do { _ = try await api.json("POST", "/v1/apns", ["token": token.map { String(format: "%02x", $0) }.joined(), "environment": environment]); pushStatus = "Device registered" } catch { pushStatus = "Registration failed" }
     }
     private func installObservers() async {
+        guard allowsBackgroundWork, pendingPrivacy == nil else { return }
         await reader.observe(definitions: definitions) { [weak self] completion in
             guard let self else { completion(); return }
+            guard self.pendingPrivacy == nil, !self.privacyExecuting else { completion(); return }
+            if UIApplication.shared.applicationState != .active {
+                self.backgroundSync(trigger: "Health data changed") { _ in completion() }
+                return
+            }
             self.observerCompletions.append(completion)
             if self.isSyncing { self.syncAgain = true }
             else if let last = self.lastSyncedAt, Date().timeIntervalSince(last) < 600 {
@@ -257,6 +326,7 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         scheduleBackstop()
     }
     func scheduleBackstop(after delay: TimeInterval? = nil) {
+        guard allowsBackgroundWork, onboarded else { return }
         let request = BGProcessingTaskRequest(identifier: "cc.healthmcp.app.sync")
         request.requiresNetworkConnectivity = true
         request.earliestBeginDate = delay.map { Date().addingTimeInterval($0) } ?? Calendar.current.nextDate(after: Date(), matching: DateComponents(hour: 2), matchingPolicy: .nextTime)
@@ -264,29 +334,90 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         try? BGTaskScheduler.shared.submit(request)
     }
     func rotateKey() async {
-        pauseSync(); await awaitSync(); busy = true; defer { busy = false }
-        do { let key = try HealthCrypto.generateKey(); try Keychain.set("pending-rotation", Data(key.utf8)); try await completeRotation(key); keyVisible = true; keySaved = false; startSync(trigger: "Key rotation backfill") } catch { self.error = error.localizedDescription }
+        do { await performPrivacy(PrivacyOperation(kind: .rotate, newKey: try HealthCrypto.generateKey())) }
+        catch { self.error = error.localizedDescription }
     }
-    private func completeRotation(_ key: String) async throws {
-        _ = try await api?.json("POST", "/v1/cache/reset", [:])
-        try Keychain.set("health-key", Data(key.utf8)); privateKey = key
-        try await journal?.resetIndex(); Keychain.remove("pending-rotation"); connections = []; lastSyncedAt = nil
+    func deleteAccount() async { await performPrivacy(PrivacyOperation(kind: .deleteAccount)) }
+    private func savePrivacy(_ operation: PrivacyOperation) throws {
+        try secureStorage.set("privacy-operation", JSONEncoder().encode(operation))
+        pendingPrivacy = operation
     }
-    func deleteAccount() async {
-        pauseSync(); await awaitSync(); busy = true; defer { busy = false }
+    private func performPrivacy(_ operation: PrivacyOperation) async {
+        guard !busy, !privacyExecuting, pendingPrivacy == nil else { return }
+        // Acquire the gate and journal intent before the first suspension point.
+        do { try savePrivacy(operation) } catch { self.error = error.localizedDescription; return }
+        await retryPrivacy()
+    }
+    func retryPrivacy() async {
+        guard !privacyExecuting, var operation = pendingPrivacy else { return }
+        privacyExecuting = true; busy = true
+        defer { privacyExecuting = false; busy = false }
+        pauseSync(); await awaitSync()
         do {
-            _ = try await api?.json("DELETE", "/v1/account")
-            await reader.stopObservers(); BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: "cc.healthmcp.app.sync"); try await journal?.resetIndex(); try await journal?.execute("DELETE FROM history")
-            for name in ["user-id", "health-key", "device-key", "simulator-device-key", "pending-rotation"] { Keychain.remove(name) }
-            for name in ["onboarded", "onboardingStep", "enabledGroups", "routesEnabled"] { UserDefaults.standard.removeObject(forKey: name) }
-            onboarded = false; onboardingStep = 0; history = []; currentRun = nil; connections = []; sampleCount = 0; hasBootstrapped = false
-            groups = []; routesEnabled = false; lastSyncedAt = nil; cloudBytes = 0; cloudChunks = 0; seriesCount = 0; keyVisible = false; keySaved = false
-            await bootstrap()
-        } catch { self.error = error.localizedDescription }
+            guard let client = api, let journal else { throw HealthMCPError.message("Secure storage is not ready. Unlock your iPhone and retry.") }
+            switch operation.kind {
+            case .group:
+                guard let group = operation.group, group != "default" else { throw HealthMCPError.message("Invalid data setting.") }
+                if operation.enabled { groups.insert(group) }
+                else {
+                    for series in Set(SeriesDefinition.all.filter { $0.group == group }.map(\.id)).sorted() {
+                        _ = try await client.json("DELETE", "/v1/series?series=" + series)
+                        try await journal.clearSeries(series)
+                    }
+                    groups.remove(group)
+                }
+                preferences.set(Array(groups), forKey: "enabledGroups")
+                if operation.enabled, allowsBackgroundWork { try await reader.requestAuthorization(definitions: definitions) }
+            case .routes:
+                _ = try await client.json("DELETE", "/v1/series?series=workouts")
+                try await journal.clearSeries("workouts"); try await journal.clearSeries("_workout_routes")
+                routesEnabled = operation.enabled; preferences.set(routesEnabled, forKey: "routesEnabled")
+                await reader.setRoutesEnabled(routesEnabled)
+                if routesEnabled, allowsBackgroundWork { try await reader.requestAuthorization(definitions: definitions) }
+            case .rotate:
+                guard let key = operation.newKey else { throw HealthMCPError.message("Key rotation could not be restored.") }
+                if !operation.remoteConfirmed {
+                    _ = try await client.json("POST", "/v1/cache/reset", ["operation_id": operation.id])
+                    operation.remoteConfirmed = true; try savePrivacy(operation)
+                }
+                try secureStorage.set("health-key", Data(key.utf8)); privateKey = key
+                try await journal.resetIndex(); try secureStorage.remove("pending-rotation")
+                connections = []; lastSyncedAt = nil; keyVisible = true; keySaved = false
+            case .deleteAccount:
+                if !operation.remoteConfirmed {
+                    _ = try await client.json("DELETE", "/v1/account")
+                    operation.remoteConfirmed = true; try savePrivacy(operation)
+                }
+                try await clearLocalAccount()
+            }
+            if operation.kind != .deleteAccount { try secureStorage.remove("privacy-operation"); pendingPrivacy = nil }
+            error = nil
+            privacyExecuting = false; busy = false
+            if operation.kind == .deleteAccount {
+                // initialize() will create fresh credentials after cleanup, without self-awaiting its task.
+                if bootstrapTask == nil { await bootstrap() }
+            } else if initialized, allowsBackgroundWork { await installObservers(); startSync(trigger: "Privacy settings updated") }
+        } catch {
+            self.error = error.localizedDescription
+            observerCompletions.forEach { $0() }; observerCompletions.removeAll()
+            // Keep durable intent and the sync gate until every remote and local step succeeds.
+        }
+    }
+    private func clearLocalAccount() async throws {
+        await reader.stopObservers()
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: "cc.healthmcp.app.sync")
+        try await journal?.resetIndex(); try await journal?.execute("DELETE FROM history")
+        for name in ["user-id", "health-key", "device-key", "simulator-device-key", "pending-rotation"] { try secureStorage.remove(name) }
+        for name in ["onboarded", "onboardingStep", "enabledGroups", "routesEnabled"] { preferences.removeObject(forKey: name) }
+        try secureStorage.remove("privacy-operation"); pendingPrivacy = nil
+        initialized = false; api = nil; privateKey = ""
+        onboarded = false; onboardingStep = 0; history = []; currentRun = nil; connections = []; sampleCount = 0
+        groups = []; routesEnabled = false; lastSyncedAt = nil; cloudBytes = 0; cloudChunks = 0; seriesCount = 0; keyVisible = false; keySaved = false
     }
     private func configureDemo() {
         onboarded = !ProcessInfo.processInfo.arguments.contains("-onboarding")
-        onboardingStep = 0; privateKey = "0123456789ABCDEF" + String(try! HealthCrypto.checksum("0123456789ABCDEF"))
+        let demoPayload = String(HealthCrypto.alphabet.prefix(26))
+        onboardingStep = 0; privateKey = demoPayload + String(try! HealthCrypto.checksum(demoPayload))
         if ProcessInfo.processInfo.arguments.contains("-onboarding-key") { onboarded = false; onboardingStep = 1; keyVisible = true }
         if ProcessInfo.processInfo.arguments.contains("-ui-pairing") { selectedTab = 1 }
         lastSyncedAt = Date().addingTimeInterval(-240); sampleCount = 24836; cloudChunks = 186; cloudBytes = 1843200; seriesCount = 24
