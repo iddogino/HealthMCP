@@ -43,29 +43,29 @@ extension HealthReader {
         return record
     }
     private func routeLocations(_ route: HKWorkoutRoute) async throws -> [CLLocation] {
-        try await withCheckedThrowingContinuation { continuation in
+        try await runHealthQuery(store: healthStore) { finish in
             var locations: [CLLocation] = []
             let query = HKWorkoutRouteQuery(route: route) { _, batch, done, error in
-                if let error { continuation.resume(throwing: error); return }
+                if let error { finish(.failure(error)); return }
                 locations.append(contentsOf: batch ?? [])
-                if done { continuation.resume(returning: locations) }
+                if done { finish(.success(locations)) }
             }
-            healthStore.execute(query)
+            return query
         }
     }
     func ecgRecord(_ ecg: HKElectrocardiogram) async throws -> [String: Any] {
-        let voltages: [Double] = try await withCheckedThrowingContinuation { continuation in
+        let voltages: [Double] = try await runHealthQuery(store: healthStore) { finish in
             var values: [Double] = []
             let query = HKElectrocardiogramQuery(ecg) { _, result in
                 switch result {
                 case .measurement(let measurement):
                     if let value = measurement.quantity(for: .appleWatchSimilarToLeadI) { values.append(value.doubleValue(for: .voltUnit(with: .micro))) }
-                case .done: continuation.resume(returning: values)
-                case .error(let error): continuation.resume(throwing: error)
-                @unknown default: continuation.resume(throwing: HealthMCPError.message("Unknown ECG response."))
+                case .done: finish(.success(values))
+                case .error(let error): finish(.failure(error))
+                @unknown default: finish(.failure(HealthMCPError.message("Unknown ECG response.")))
                 }
             }
-            healthStore.execute(query)
+            return query
         }
         let names = [0: "notSet", 1: "sinusRhythm", 2: "atrialFibrillation", 3: "inconclusiveLowHeartRate", 4: "inconclusiveHighHeartRate", 5: "inconclusivePoorReading", 6: "inconclusiveOther", 100: "unrecognized"]
         var record: [String: Any] = ["id": ecg.uuid.uuidString.lowercased(), "t": HealthDates.timestamp(ecg.startDate), "classification": names[ecg.classification.rawValue] ?? "unrecognized", "voltage_uv": voltages]

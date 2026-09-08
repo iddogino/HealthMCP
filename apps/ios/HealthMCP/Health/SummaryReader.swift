@@ -4,21 +4,21 @@ import HealthKit
 extension HealthReader {
     func statistics(identifier: HKQuantityTypeIdentifier, unit: HKUnit, start: Date, end: Date, cumulative: Bool) async throws -> [String: Double] {
         guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { return [:] }
-        return try await withCheckedThrowingContinuation { continuation in
+        return try await runHealthQuery(store: healthStore) { finish in
             // Omitting separateBySource lets HealthKit merge overlapping device sources.
             let query = HKStatisticsCollectionQuery(quantityType: type, quantitySamplePredicate: HKQuery.predicateForSamples(withStart: start, end: end), options: cumulative ? .cumulativeSum : .discreteAverage, anchorDate: start, intervalComponents: DateComponents(day: 1))
             query.initialResultsHandler = { _, collection, error in
                 if let error {
-                    if (error as NSError).code == HKError.errorNoData.rawValue { continuation.resume(returning: [:]) } else { continuation.resume(throwing: error) }
+                    if (error as NSError).code == HKError.errorNoData.rawValue { finish(.success([:])) } else { finish(.failure(error)) }
                     return
                 }
                 var result: [String: Double] = [:]
                 collection?.enumerateStatistics(from: start, to: end.addingTimeInterval(-0.001)) { statistics, _ in
                     if let quantity = cumulative ? statistics.sumQuantity() : statistics.averageQuantity() { result[HealthDates.day(statistics.startDate)] = quantity.doubleValue(for: unit) }
                 }
-                continuation.resume(returning: result)
+                finish(.success(result))
             }
-            healthStore.execute(query)
+            return query
         }
     }
     func dailySummary(month: String) async throws -> [[String: Any]] {
@@ -67,11 +67,11 @@ extension HealthReader {
         var first = HealthDates.calendar.dateComponents([.era, .year, .month, .day], from: start)
         var last = HealthDates.calendar.dateComponents([.era, .year, .month, .day], from: min(Date(), end.addingTimeInterval(-1)))
         first.calendar = HealthDates.calendar; last.calendar = HealthDates.calendar
-        let summaries: [HKActivitySummary] = try await withCheckedThrowingContinuation { continuation in
+        let summaries: [HKActivitySummary] = try await runHealthQuery(store: healthStore) { finish in
             let query = HKActivitySummaryQuery(predicate: HKQuery.predicate(forActivitySummariesBetweenStart: first, end: last)) { _, summaries, error in
-                if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: summaries ?? []) }
+                if let error { finish(.failure(error)) } else { finish(.success(summaries ?? [])) }
             }
-            healthStore.execute(query)
+            return query
         }
         return summaries.compactMap { summary in
             guard let day = HealthDates.calendar.date(from: summary.dateComponents(for: HealthDates.calendar)) else { return nil }

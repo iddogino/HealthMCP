@@ -10,10 +10,15 @@
 		01FAB53B16CCB0BEE30F6C0D /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5CEBAC9FDD5250435CAC0361 /* HealthKit.framework */; };
 		053E241FB9DF4FF11568418F /* WorkoutNames.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D50332BC314BCFDA1D9F7D7 /* WorkoutNames.swift */; };
 		0E150A88403ECC06BE939B21 /* SymptomDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 266FD6C2A91AFF0B570CB3F1 /* SymptomDefinitions.swift */; };
+		10FEEF5D72455A9B47C730DF /* SyncDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E7F57E76ECD82FD39C9622 /* SyncDiagnostics.swift */; };
 		1A8A47D025A229E5159FAA83 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 2513EF5BFA93344F601ED746 /* libsqlite3.tbd */; };
+		2AEC72362A40BB95B9C19971 /* SyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AEDFEA5E11759CA66116C0 /* SyncEngine.swift */; };
 		4C5C40D5A213DF3B1263547E /* HealthMCPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */; };
+		561C06BF4CCF3F26E417526C /* SyncPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */; };
+		576EFD29FF7B2F9CDC9902A4 /* HealthQueryRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B1BE0EAE9729ED39A1FA60 /* HealthQueryRunner.swift */; };
 		62C441F2354626DC6A648F43 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D86803C076B555FFAB82A6F /* RootView.swift */; };
 		65A9F565FA91CE4A6EBAADD9 /* SyncStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 291077A16B80574E2A6C85C9 /* SyncStore.swift */; };
+		67E73DCB51B6FE23868FF049 /* IncrementalSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */; };
 		7C680C4705A9231580106851 /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = B59C3176B77E563AE212A216 /* Design.swift */; };
 		8061F0D08E9A41C393C1129A /* Crypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BEA5FCA32280D88DC4B7AD /* Crypto.swift */; };
 		83A0767550894E5A1498BB68 /* DeviceValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69467D24AF1B72C24B87A846 /* DeviceValidation.swift */; };
@@ -66,6 +71,7 @@
 		4B93A61EDB00DB7498C162EF /* HealthMCPTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HealthMCPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		4C7A5D441EF72F16508AE7A2 /* HealthReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReader.swift; sourceTree = "<group>"; };
 		4D86803C076B555FFAB82A6F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		53AEDFEA5E11759CA66116C0 /* SyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncEngine.swift; sourceTree = "<group>"; };
 		557AB3A732CF76396DCB46C7 /* libz.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libz.tbd; path = usr/lib/libz.tbd; sourceTree = SDKROOT; };
 		5CEBAC9FDD5250435CAC0361 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		5D3B8A05C201E316EB0C2F1E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -73,9 +79,11 @@
 		6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMCPApp.swift; sourceTree = "<group>"; };
 		7E192361A64FE945309752A1 /* HealthMCPUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMCPUITests.swift; sourceTree = "<group>"; };
 		7F42C55DA5C2B927A7BDF89B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncrementalSyncTests.swift; sourceTree = "<group>"; };
 		8D50332BC314BCFDA1D9F7D7 /* WorkoutNames.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutNames.swift; sourceTree = "<group>"; };
 		90BEA5FCA32280D88DC4B7AD /* Crypto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Crypto.swift; sourceTree = "<group>"; };
 		98B1137B1C66FA2A40D53F38 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPerformanceTests.swift; sourceTree = "<group>"; };
 		ADDD9F3F5D8DF47DD42EFF27 /* HealthMCP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HealthMCP.entitlements; sourceTree = "<group>"; };
 		B59C3176B77E563AE212A216 /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		BD2D78ACE23A552110145475 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -84,6 +92,8 @@
 		D6D06504A6353A44E899BFE6 /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
 		ED256CFE62986B4547441AEC /* crypto-v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "crypto-v1.json"; sourceTree = "<group>"; };
 		EFC4F0966409E190F00A0AC9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		F1B1BE0EAE9729ED39A1FA60 /* HealthQueryRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthQueryRunner.swift; sourceTree = "<group>"; };
+		F2E7F57E76ECD82FD39C9622 /* SyncDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncDiagnostics.swift; sourceTree = "<group>"; };
 		F7F01183FF5EF954D769FC49 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FB4B33887B114B20B392AFB3 /* HealthMCPUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HealthMCPUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -142,6 +152,8 @@
 				EFC4F0966409E190F00A0AC9 /* AppModel.swift */,
 				90BEA5FCA32280D88DC4B7AD /* Crypto.swift */,
 				69467D24AF1B72C24B87A846 /* DeviceValidation.swift */,
+				F2E7F57E76ECD82FD39C9622 /* SyncDiagnostics.swift */,
+				53AEDFEA5E11759CA66116C0 /* SyncEngine.swift */,
 				291077A16B80574E2A6C85C9 /* SyncStore.swift */,
 			);
 			path = Core;
@@ -187,6 +199,8 @@
 			children = (
 				ED256CFE62986B4547441AEC /* crypto-v1.json */,
 				21F4C52194C503667CD093B6 /* HealthMCPTests.swift */,
+				81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */,
+				A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */,
 			);
 			path = HealthMCPTests;
 			sourceTree = "<group>";
@@ -194,6 +208,7 @@
 		DCA43C50924708D52A0F9753 /* Health */ = {
 			isa = PBXGroup;
 			children = (
+				F1B1BE0EAE9729ED39A1FA60 /* HealthQueryRunner.swift */,
 				4C7A5D441EF72F16508AE7A2 /* HealthReader.swift */,
 				02B66DEFF6DA8C9711F764A0 /* QuantityDefinitions.swift */,
 				1E17BBF3125FB3CF10D9A6F3 /* SeriesDefinition.swift */,
@@ -339,6 +354,7 @@
 				7C680C4705A9231580106851 /* Design.swift in Sources */,
 				83A0767550894E5A1498BB68 /* DeviceValidation.swift in Sources */,
 				4C5C40D5A213DF3B1263547E /* HealthMCPApp.swift in Sources */,
+				576EFD29FF7B2F9CDC9902A4 /* HealthQueryRunner.swift in Sources */,
 				B6EB851ADE5639FA005F32E6 /* HealthReader.swift in Sources */,
 				FF7F02F83C65BAF49DFD26A2 /* OverviewView.swift in Sources */,
 				A88793C2C7F00E1995F55161 /* QuantityDefinitions.swift in Sources */,
@@ -347,6 +363,8 @@
 				BCCF572B02A9F515CAA04063 /* SettingsView.swift in Sources */,
 				8890768878EA4AB2490F935F /* SummaryReader.swift in Sources */,
 				0E150A88403ECC06BE939B21 /* SymptomDefinitions.swift in Sources */,
+				10FEEF5D72455A9B47C730DF /* SyncDiagnostics.swift in Sources */,
+				2AEC72362A40BB95B9C19971 /* SyncEngine.swift in Sources */,
 				65A9F565FA91CE4A6EBAADD9 /* SyncStore.swift in Sources */,
 				053E241FB9DF4FF11568418F /* WorkoutNames.swift in Sources */,
 				88C74F38536A7992F35F5042 /* WorkoutReader.swift in Sources */,
@@ -358,6 +376,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				FFBA873FC7F29050D319C4A5 /* HealthMCPTests.swift in Sources */,
+				67E73DCB51B6FE23868FF049 /* IncrementalSyncTests.swift in Sources */,
+				561C06BF4CCF3F26E417526C /* SyncPerformanceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -455,7 +475,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -516,7 +536,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

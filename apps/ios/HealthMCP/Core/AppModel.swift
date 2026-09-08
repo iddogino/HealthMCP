@@ -53,24 +53,33 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         guard !hasBootstrapped else { return }; hasBootstrapped = true
         defer { initialized = true }
         do {
-            journal = try SyncStore()
-            history = try journal!.history()
+            journal = try await SyncStore.open()
+            history = try await journal!.history()
             for var interrupted in history where interrupted.status == "running" {
-                interrupted.status = "interrupted"; interrupted.finishedAt = Date(); interrupted.stage = "Ready to resume"; try journal!.save(interrupted)
+                interrupted.status = "interrupted"; interrupted.finishedAt = Date(); interrupted.stage = "Ready to resume"; try await journal!.save(interrupted)
             }
-            history = try journal!.history()
+            history = try await journal!.history()
             let identity = try DeviceIdentity()
             let userID = try Keychain.read("user-id").flatMap { String(data: $0, encoding: .utf8) } ?? ""
             api = APIClient(identity: identity, userID: userID)
             if let saved = try Keychain.read("health-key"), let key = String(data: saved, encoding: .utf8) { privateKey = try HealthCrypto.normalize(key) }
             else { privateKey = try HealthCrypto.generateKey(); try Keychain.set("health-key", Data(privateKey.utf8)) }
-            reader.routesEnabled = routesEnabled
-            sampleCount = try journal!.totalSamples()
+            await reader.setRoutesEnabled(routesEnabled)
+            sampleCount = try await journal!.totalSamples()
             if isDemo { configureDemo(); return }
             if let pending = try Keychain.read("pending-rotation"), let key = String(data: pending, encoding: .utf8), !userID.isEmpty { try await completeRotation(key) }
-            if onboarded { installObservers(); await refreshStatus(); startSync(trigger: "App opened") }
+            if onboarded { await installObservers(); startSync(trigger: "App opened"); Task { await refreshStatus() } }
             #if DEBUG
             if ProcessInfo.processInfo.arguments.contains("-device-e2e") { Task { await awaitSync(); await DeviceValidation.run(model:self) } }
+            if ProcessInfo.processInfo.arguments.contains("-device-e2e-incremental") {
+                Task {
+                    for _ in 0..<120 {
+                        await refreshStatus()
+                        if seriesCount >= 3 { await DeviceValidation.run(model: self); break }
+                        try? await Task.sleep(for: .seconds(5))
+                    }
+                }
+            }
             if ProcessInfo.processInfo.arguments.contains("-device-e2e-finish") { Task { await DeviceValidation.finish(model:self) } }
             #endif
         } catch { self.error = error.localizedDescription }
@@ -89,9 +98,9 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         } catch { self.error = error.localizedDescription }
     }
     func acceptKey() { keyVisible = false; onboardingStep = 2; UserDefaults.standard.set(2, forKey: "onboardingStep") }
-    func startFirstSync() {
+    func startFirstSync() async {
         onboardingStep = 3; UserDefaults.standard.set(3, forKey: "onboardingStep")
-        installObservers(); startSync(trigger: "Initial backfill")
+        await installObservers(); startSync(trigger: "Initial backfill")
     }
     func finishOnboarding() { onboarded = true; UserDefaults.standard.set(true, forKey: "onboarded"); keyVisible = false }
     func foreground() {
@@ -106,124 +115,40 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     }
     func pauseSync() { syncAgain = false; syncTask?.cancel() }
     func awaitSync() async { await syncTask?.value }
-    private func recordProgress() throws {
-        if let currentRun { try journal?.save(currentRun) }
-    }
     private func runSync() async {
-        guard let journal, let client = api else { return }
+        guard let journal, let client = api, let initial = currentRun else { return }
         UIApplication.shared.isIdleTimerDisabled = true
-        var failedSeries = Set<String>()
-        defer {
-            UIApplication.shared.isIdleTimerDisabled = false
-            observerCompletions.forEach { $0() }; observerCompletions.removeAll()
-            scheduleBackstop()
-            if syncAgain { syncAgain = false; startSync(trigger: "Health data changed") }
+        #if DEBUG
+        let responsiveness = Task { @MainActor in
+            var last = ContinuousClock.now, saved = ContinuousClock.now
+            var maxGap = 0.0, ticks = 0
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(50)) } catch { break }
+                let now = ContinuousClock.now, elapsed = last.duration(to: now).components
+                maxGap = max(maxGap, Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15); last = now; ticks += 1
+                if saved.duration(to: now) >= .seconds(5) {
+                    let values: [String: Any] = ["updated_at": HealthDates.timestamp(Date()), "ticks": ticks, "maximum_main_actor_gap_ms": maxGap]
+                    Task.detached(priority: .utility) { SyncDiagnostics.write(values, name: "responsiveness.json") }
+                    saved = now
+                }
+            }
         }
-        do {
-            try recordProgress()
-            currentRun?.stage = "Checking your private key"
-            _ = try await client.upload(series: "check", period: "single", plaintext: Data("\"ok\"".utf8), key: privateKey)
-            let defs = definitions
-            let grouped = Dictionary(grouping: defs.compactMap { definition -> (HKSampleType, SeriesDefinition)? in guard let type = definition.sampleType else { return nil }; return (type, definition) }, by: { $0.0.identifier })
-            let typeNames = grouped.keys.sorted()
-            for (offset, typeName) in typeNames.enumerated() {
-                try Task.checkCancellation()
-                guard let entries = grouped[typeName], let type = entries.first?.0 else { continue }
-                currentRun?.stage = "Reading \(entries[0].1.title)"
-                currentRun?.progress = 0.35 * Double(offset) / Double(max(1, typeNames.count))
-                do {
-                    var anchor = try journal.anchor(for: typeName)
-                    while true {
-                        let (samples, deleted, next) = try await reader.anchored(type: type, anchor: anchor)
-                        let indexed = entries.flatMap { entry in samples.map { reader.index($0, definition: entry.1) } }
-                        try journal.applyPage(type: typeName, samples: indexed, deleted: deleted.map(\.uuid), anchor: next)
-                        anchor = next; currentRun?.sampleCount += samples.count
-                        try recordProgress(); try Task.checkCancellation()
-                        if samples.count + deleted.count < 1000 { break }
-                    }
-                } catch is CancellationError { throw CancellationError() }
-                catch {
-                    if SyncInterruption.isHealthDataLocked(error) { throw SyncInterruption.healthDataLocked }
-                    failedSeries.formUnion(entries.map { $0.1.id }); currentRun?.errors.append("\(entries[0].1.title): \(error.localizedDescription)")
-                }
-            }
-            sampleCount = try journal.totalSamples()
-            try journal.markDirty("daily_summary", HealthDates.month(Date()))
-            try journal.markDirty("activity_rings", HealthDates.month(Date()))
-            let profile = try reader.json(reader.profile())
-            let profileBytes = try await client.upload(series: "profile", period: "single", plaintext: profile, key: privateKey)
-            currentRun?.uploadedBytes += profileBytes
-            try journal.recordDerived(series: "profile", period: "single", count: 1, first: HealthDates.day(Date()), last: HealthDates.day(Date()))
-            let chunks = try journal.dirtyChunks()
-            currentRun?.totalChunks = chunks.count; currentRun?.stage = "Encrypting and uploading"; currentRun?.progress = 0.35
-            for offset in stride(from: 0, to: chunks.count, by: 4) {
-                try Task.checkCancellation()
-                let batch = Array(chunks[offset..<min(offset+4, chunks.count)])
-                var healthDataLocked = false
-                await withTaskGroup(of: (String, String?, Bool).self) { group in
-                    for chunk in batch { group.addTask { await self.syncChunk(chunk, definitions: defs, client: client) } }
-                    for await (series, error, locked) in group {
-                        if locked { healthDataLocked = true; group.cancelAll() }
-                        if let error { failedSeries.insert(series); currentRun?.errors.append(error) }
-                    }
-                }
-                if healthDataLocked { throw SyncInterruption.healthDataLocked }
-                try Task.checkCancellation()
-                currentRun?.progress = 0.35 + 0.60 * Double(min(offset+4, chunks.count)) / Double(max(1, chunks.count))
-                try recordProgress()
-            }
-            currentRun?.stage = "Updating your catalog"
-            for series in Set(defs.map(\.id) + ["profile", "daily_summary", "activity_rings"]) where !failedSeries.contains(series) {
-                let summary = try journal.summary(series)
-                let derived = try journal.derivedSummary(series)
-                let count = summary?.0 ?? derived?.0 ?? 0
-                let first = summary.map { HealthDates.day($0.1) } ?? derived?.1 ?? HealthDates.day(Date())
-                let last = summary.map { HealthDates.day($0.2) } ?? derived?.2 ?? first
-                _ = try await client.json("PUT", "/v1/series", ["series": series, "first_day": first, "last_day": last, "total_samples": count])
-            }
-            if currentRun?.errors.isEmpty == true {
-                _ = try await client.json("POST", "/v1/sync/complete", [:]); lastSyncedAt = Date()
-                currentRun?.status = "complete"; currentRun?.stage = sampleCount == 0 ? "No readable health samples yet" : "Your encrypted cache is up to date"; currentRun?.progress = 1
-            } else { currentRun?.status = "partial"; currentRun?.stage = "Some data needs another attempt" }
-        } catch where SyncInterruption.isHealthDataLocked(error) {
-            syncAgain = false
-            currentRun?.pauseForProtectedData()
-        } catch is CancellationError { currentRun?.status = "paused"; currentRun?.stage = "Progress saved. Ready to resume." }
-        catch { currentRun?.status = "failed"; currentRun?.stage = "Sync needs attention"; currentRun?.errors.append(error.localizedDescription) }
-        currentRun?.finishedAt = Date()
-        do { try recordProgress(); history = try journal.history() } catch { self.error = error.localizedDescription }
+        defer { responsiveness.cancel() }
+        #endif
+        let engine = SyncEngine(store: journal, reader: reader, client: client, key: privateKey, run: initial) { [weak self] run in
+            self?.currentRun = run
+        }
+        let completed = await engine.sync(definitions: definitions)
+        currentRun = completed
+        if completed.status == "complete" { lastSyncedAt = Date() }
+        if completed.status == "paused" || completed.status == "failed" { syncAgain = false }
+        do { sampleCount = try await journal.totalSamples(); history = try await journal.history() }
+        catch { self.error = error.localizedDescription }
+        UIApplication.shared.isIdleTimerDisabled = false
+        observerCompletions.forEach { $0() }; observerCompletions.removeAll()
+        scheduleBackstop()
         await refreshStatus()
-    }
-    private func syncChunk(_ chunk: DirtyChunk, definitions: [SeriesDefinition], client: APIClient) async -> (String, String?, Bool) {
-        do {
-            try Task.checkCancellation()
-            currentRun?.stage = "Syncing \(chunk.series.replacingOccurrences(of: "_", with: " ")) · \(chunk.period.prefix(10))"
-            let (plaintext, count) = try await reader.chunk(chunk, definitions: definitions)
-            var uploadedBytes = 0
-            for attempt in 0..<3 {
-                do {
-                    if count == 0 { try await client.delete(series: chunk.series, period: chunk.period) }
-                    else { uploadedBytes = try await client.upload(series: chunk.series, period: chunk.period, plaintext: plaintext, key: privateKey) }
-                    break
-                } catch {
-                    if attempt == 2 || Task.isCancelled { throw error }
-                    try await Task.sleep(for: .seconds(Double(1 << attempt)))
-                }
-            }
-            if ["daily_summary", "activity_rings"].contains(chunk.series) {
-                let rows = (try JSONSerialization.jsonObject(with: plaintext)) as? [[String: Any]] ?? []
-                let days = rows.compactMap { $0["d"] as? String }.sorted()
-                try journal?.recordDerived(series: chunk.series, period: chunk.period, count: count, first: days.first ?? chunk.period+"-01", last: days.last ?? chunk.period+"-01")
-            }
-            try journal?.clearDirty(chunk)
-            currentRun?.uploadedChunks += 1; currentRun?.uploadedBytes += uploadedBytes
-            try recordProgress()
-            return (chunk.series, nil, false)
-        } catch is CancellationError { return (chunk.series, nil, false) }
-        catch {
-            if SyncInterruption.isHealthDataLocked(error) { return (chunk.series, nil, true) }
-            return (chunk.series, "\(chunk.series) \(chunk.period): \(error.localizedDescription)", false)
-        }
+        if syncAgain { syncAgain = false; startSync(trigger: "Health data changed") }
     }
     func refreshStatus() async {
         guard let client = api, !client.userID.isEmpty, !isDemo else { return }
@@ -268,21 +193,21 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
             else {
                 for series in Set(SeriesDefinition.all.filter { $0.group == group }.map(\.id)) {
                     _ = try await api?.json("DELETE", "/v1/series?series="+series)
-                    try journal?.clearSeries(series)
+                    try await journal?.clearSeries(series)
                 }
                 groups.remove(group)
             }
             UserDefaults.standard.set(Array(groups), forKey: "enabledGroups")
             try await reader.requestAuthorization(definitions: definitions)
-            installObservers(); startSync(trigger: "Data settings changed")
+            await installObservers(); startSync(trigger: "Data settings changed")
         } catch { self.error = error.localizedDescription }
     }
     func setRoutes(_ enabled: Bool) async {
         pauseSync(); await awaitSync(); busy = true; defer { busy = false }
         do {
             _ = try await api?.json("DELETE", "/v1/series?series=workouts")
-            try journal?.clearSeries("workouts")
-            routesEnabled = enabled; reader.routesEnabled = enabled; UserDefaults.standard.set(enabled, forKey: "routesEnabled")
+            try await journal?.clearSeries("workouts")
+            routesEnabled = enabled; await reader.setRoutesEnabled(enabled); UserDefaults.standard.set(enabled, forKey: "routesEnabled")
             try await reader.requestAuthorization(definitions: definitions)
             startSync(trigger: "Workout detail changed")
         } catch { self.error = error.localizedDescription }
@@ -296,8 +221,8 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         #endif
         do { _ = try await api.json("POST", "/v1/apns", ["token": token.map { String(format: "%02x", $0) }.joined(), "environment": environment]); pushStatus = "Device registered" } catch { pushStatus = "Registration failed" }
     }
-    private func installObservers() {
-        reader.observe(definitions: definitions) { [weak self] completion in
+    private func installObservers() async {
+        await reader.observe(definitions: definitions) { [weak self] completion in
             guard let self else { completion(); return }
             self.observerCompletions.append(completion)
             if self.isSyncing { self.syncAgain = true }
@@ -322,13 +247,13 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
     private func completeRotation(_ key: String) async throws {
         _ = try await api?.json("POST", "/v1/cache/reset", [:])
         try Keychain.set("health-key", Data(key.utf8)); privateKey = key
-        try journal?.resetIndex(); Keychain.remove("pending-rotation"); connections = []; lastSyncedAt = nil
+        try await journal?.resetIndex(); Keychain.remove("pending-rotation"); connections = []; lastSyncedAt = nil
     }
     func deleteAccount() async {
         pauseSync(); await awaitSync(); busy = true; defer { busy = false }
         do {
             _ = try await api?.json("DELETE", "/v1/account")
-            reader.stopObservers(); BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: "cc.healthmcp.app.sync"); try journal?.resetIndex(); try journal?.execute("DELETE FROM history")
+            await reader.stopObservers(); BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: "cc.healthmcp.app.sync"); try await journal?.resetIndex(); try await journal?.execute("DELETE FROM history")
             for name in ["user-id", "health-key", "device-key", "simulator-device-key", "pending-rotation"] { Keychain.remove(name) }
             for name in ["onboarded", "onboardingStep", "enabledGroups", "routesEnabled"] { UserDefaults.standard.removeObject(forKey: name) }
             onboarded = false; onboardingStep = 0; history = []; currentRun = nil; connections = []; sampleCount = 0; hasBootstrapped = false
@@ -342,6 +267,6 @@ struct PairingPreview: Identifiable { let id: String, name: String, host: String
         lastSyncedAt = Date().addingTimeInterval(-240); sampleCount = 24836; cloudChunks = 186; cloudBytes = 1843200; seriesCount = 24
         var run = SyncRun(trigger: "Health data changed"); run.startedAt = Date().addingTimeInterval(-285); run.finishedAt = Date().addingTimeInterval(-240); run.status = "complete"; run.stage = "Your encrypted cache is up to date"; run.uploadedChunks = 18; run.totalChunks = 18; run.uploadedBytes = 182400; run.progress = 1
         history = [run]; pushStatus = "Device registered"
-        if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { run.status = "running"; run.trigger = "Initial backfill"; run.progress = 0.62; run.totalChunks = 320; run.uploadedChunks = 144; run.stage = "Encrypting and uploading"; currentRun = run }
+        if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { run.status = "running"; run.trigger = "Initial backfill"; run.progress = 0.62; run.totalChunks = 320; run.uploadedChunks = 144; run.stage = "Encrypting and uploading"; run.phase = "streaming"; run.completedTypes = 17; run.totalTypes = 53; currentRun = run }
     }
 }

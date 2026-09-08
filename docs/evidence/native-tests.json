@@ -1,10 +1,25 @@
 {
   "source": "XcodeBuildMCP test_sim",
-  "completed_at": "2026-09-08T01:29:29Z",
   "configuration": "Debug",
   "simulator": "iPhone 17 Pro, iOS 26.3.1",
-  "passed": 12,
+  "distinct_tests_passed": 19,
   "failed": 0,
   "skipped": 0,
-  "result_bundle": "test_sim_2026-09-08T01-28-44-841Z_pid23677_ed54be1f.xcresult"
+  "runs": [
+    {
+      "passed": 17,
+      "result_bundle": "test_sim_2026-09-08T16-45-44-029Z_pid34218_5ca13c19.xcresult",
+      "scope": "Full suite before cancellation and catalog-replay tests were added"
+    },
+    {
+      "passed": 2,
+      "result_bundle": "test_sim_2026-09-08T16-49-53-873Z_pid34218_7aaa822b.xcresult",
+      "scope": "Cancellation regression and live-progress UI"
+    },
+    {
+      "passed": 5,
+      "result_bundle": "test_sim_2026-09-08T17-04-52-988Z_pid34218_1e8e4748.xcresult",
+      "scope": "All incremental engine integration tests after final catalog-recovery change"
+    }
+  ]
 }

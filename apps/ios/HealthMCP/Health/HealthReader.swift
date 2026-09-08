@@ -2,10 +2,11 @@ import Foundation
 import HealthKit
 import CoreLocation
 
-@MainActor final class HealthReader {
+actor HealthReader {
     let healthStore = HKHealthStore()
     private var observers: [HKObserverQuery] = []
     var routesEnabled = false
+    func setRoutesEnabled(_ enabled: Bool) { routesEnabled = enabled }
     func requestAuthorization(definitions: [SeriesDefinition]) async throws {
         guard HKHealthStore.isHealthDataAvailable() else { throw HealthMCPError.message("Apple Health is not available on this device.") }
         var types = Set<HKObjectType>(definitions.compactMap(\.sampleType))
@@ -37,21 +38,19 @@ import CoreLocation
     func stopObservers() { observers.forEach { healthStore.stop($0) }; observers.removeAll(); healthStore.disableAllBackgroundDelivery { _, _ in } }
     func anchored(type: HKSampleType, anchor: HKQueryAnchor?) async throws -> ([HKSample], [HKDeletedObject], HKQueryAnchor?) {
         try Task.checkCancellation()
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKAnchoredObjectQuery(type: type, predicate: nil, anchor: anchor, limit: 1000) { _, samples, deleted, next, error in
-                if let error { continuation.resume(throwing: error) }
-                else { continuation.resume(returning: (samples ?? [], deleted ?? [], next)) }
+        return try await runHealthQuery(store: healthStore) { finish in
+            HKAnchoredObjectQuery(type: type, predicate: nil, anchor: anchor, limit: 1000) { _, samples, deleted, next, error in
+                if let error { finish(.failure(error)) }
+                else { finish(.success((samples ?? [], deleted ?? [], next))) }
             }
-            healthStore.execute(query)
         }
     }
-    func samples(type: HKSampleType, predicate: NSPredicate) async throws -> [HKSample] {
+    func samples(type: HKSampleType, predicate: NSPredicate, limit: Int = HKObjectQueryNoLimit, ascending: Bool = true) async throws -> [HKSample] {
         try Task.checkCancellation()
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]) { _, samples, error in
-                if let error { continuation.resume(throwing: error) } else { continuation.resume(returning: samples ?? []) }
+        return try await runHealthQuery(store: healthStore) { finish in
+            HKSampleQuery(sampleType: type, predicate: predicate, limit: limit, sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: ascending)]) { _, samples, error in
+                if let error { finish(.failure(error)) } else { finish(.success(samples ?? [])) }
             }
-            healthStore.execute(query)
         }
     }
     func index(_ sample: HKSample, definition: SeriesDefinition) -> IndexedSample {

@@ -25,7 +25,8 @@ final class HealthMCPUITests:XCTestCase {
         let app=app(["-ui-syncing"])
         XCTAssertTrue(app.buttons["pause-sync"].waitForExistence(timeout:10))
         XCTAssertTrue(app.progressIndicators["Sync progress"].exists)
-        XCTAssertTrue(app.staticTexts["62%"].exists)
+        XCTAssertTrue(app.staticTexts["LIVE"].exists)
+        XCTAssertTrue(app.staticTexts["17 of 53 data types scanned · recent uploads are available as they finish"].exists)
         XCTAssertTrue(app.staticTexts["Encrypting and uploading"].exists)
     }
 }

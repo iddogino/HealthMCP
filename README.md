@@ -106,8 +106,8 @@ The site uses a separately named Wrangler configuration because Vinext's automat
 
 1. Choose Health read permissions.
 2. Save the private key securely and acknowledge it.
-3. Start the first historical backfill. Keep the app open for a large history.
-4. Follow progress, pause/resume if needed, and review Sync history.
+3. Start the first historical backfill. Recent data uploads first and is usable while history continues. Keep the app open for a large history.
+4. Follow live progress, pause/resume if needed, and review Sync history. Saved work survives closing the app.
 5. Add the MCP endpoint to a compatible client and approve its pairing code in Agents.
 6. Configure `HEALTHMCP_KEY` in that client's private code environment, never in chat or tool arguments.
 
@@ -115,6 +115,6 @@ Optional data groups and GPS routes are controlled in Settings. Disabling them r
 
 ## Current scope
 
-V1 has read-only HealthKit access, individual agent revocation, resumable paginated backfills, four concurrent chunk uploads, sync history, on-device summaries, and best-effort background/push refresh. No analytics or advertising SDK is included.
+V1 has read-only HealthKit access, individual agent revocation, incremental paginated backfills with live catalog publication, four concurrent chunk uploads, sync history, on-device summaries, and best-effort background/push refresh. Indexing and serialization run off the UI thread. See [sync performance](docs/sync-performance.md) for the real-device validation and measurements. No analytics or advertising SDK is included.
 
 V1's 16-character random key contains 80 bits of entropy, plus a checksum. AES-256 is the cipher, not a claim of 256-bit secret entropy. ECG and GPS are opt-in because payload size varies. Keys do not migrate to another phone; recovery means a new identity and backfill. iOS controls background execution and notification delivery.

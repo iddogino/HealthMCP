@@ -1,0 +1,75 @@
+{
+  "version": "1.0.0",
+  "build": "4",
+  "baseline_journal": {
+    "indexed_identifiers": 835846,
+    "pending_chunks": 7355,
+    "type_anchors": 9,
+    "active_run_scanned": 122019,
+    "active_run_health_uploads": 0
+  },
+  "index_benchmark_ms_per_1000": {
+    "before": [
+      23.558333,
+      23.788417,
+      23.202167,
+      25.370125,
+      24.772208
+    ],
+    "after": [
+      10.294166,
+      10.874417,
+      11.740917,
+      11.681625,
+      12.500209
+    ]
+  },
+  "simulator_stress": {
+    "samples": 100000,
+    "heartbeat_interval_ms": 10,
+    "ticks": 366,
+    "maximum_gap_ms": 11.103625
+  },
+  "device_progress": {
+    "errors": [],
+    "max_chunk_ms": 1258.274417,
+    "max_index_ms": 211.312916,
+    "max_read_ms": 180.299083,
+    "pending_chunks": 14191,
+    "phase": "streaming",
+    "processed_chunks": 420,
+    "scanned_samples": 70365,
+    "status": "running",
+    "types_complete": 33,
+    "types_total": 53,
+    "updated_at": "2026-09-08T17:09:29Z",
+    "uploaded_bytes": 819128
+  },
+  "device_responsiveness": {
+    "maximum_main_actor_gap_ms": 71.398875,
+    "ticks": 1325,
+    "updated_at": "2026-09-08T17:08:11Z"
+  },
+  "device_heartbeat_interval_ms": 50,
+  "official_mcp_sdk": {
+    "checked_at": "2026-09-08T17:08:11.742Z",
+    "series_count": 42,
+    "last_synced_at": null,
+    "sync": {
+      "requested_at": "2026-09-08T17:08:11.000Z",
+      "last_synced_at": null,
+      "push_status": "accepted",
+      "advice": "Best effort. Poll list_series in about 60 seconds. If stale, open Health MCP on your iPhone."
+    }
+  },
+  "push_receipt": {
+    "kind": "remote-notification",
+    "received_at": "2026-09-08T17:08:12Z"
+  },
+  "limitations": [
+    "Full historical backfill still running at measurement time.",
+    "Processed chunks include empty-period deletions.",
+    "Heartbeat gaps are not frame-time measurements.",
+    "Real APNs receipt was verified with the app open."
+  ]
+}

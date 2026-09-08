@@ -58,7 +58,11 @@ import CryptoKit
             func rpc(_ method: String, _ parameters: [String: Any]) async throws -> [String: Any] {
                 let response = try await request("/mcp", method:"POST", body:json(["jsonrpc":"2.0", "id":UUID().uuidString, "method":method, "params":parameters]), headers:["Content-Type":"application/json", "Accept":"application/json, text/event-stream", "Authorization":"Bearer "+token])
                 let decoded = try object(response.0)
-                guard let result = decoded["result"] as? [String: Any], result["isError"] as? Bool != true else { throw HealthMCPError.message("MCP validation failed.") }
+                guard let result = decoded["result"] as? [String: Any] else { throw HealthMCPError.message("MCP protocol error: \((decoded["error"] as? [String: Any])?["code"] as? Int ?? 0)") }
+                if result["isError"] as? Bool == true {
+                    let message = (result["content"] as? [[String: Any]])?.first?["text"] as? String ?? "Request failed"
+                    throw HealthMCPError.message("MCP tool failed: \(message.prefix(200))")
+                }
                 return result
             }
             func tool(_ name: String, _ arguments: [String: Any] = [:]) async throws -> [String: Any] {
@@ -73,9 +77,12 @@ import CryptoKit
             let check = try JSONDecoder().decode(Envelope.self, from: await request(checkURL).0)
             guard try HealthCrypto.decrypt(check, key:model.privateKey, path:checkPath) == Data("\"ok\"".utf8) else { throw HealthMCPError.message("Private key verification failed.") }
             checks.append("Live encrypted key-check decrypted on device")
-            let series = (catalog["series"] as? [[String: Any]] ?? []).filter { !["profile","daily_summary","activity_rings"].contains($0["series"] as? String ?? "") }
+            let today = HealthDates.day(Date())
+            let series = (catalog["series"] as? [[String: Any]] ?? []).filter {
+                !["profile","daily_summary","activity_rings"].contains($0["series"] as? String ?? "") && ($0["first_day"] as? String ?? today) < today
+            }.sorted { ($0["first_day"] as? String ?? "") < ($1["first_day"] as? String ?? "") }
             guard let first = series.first, let name = first["series"] as? String, let start = first["first_day"] as? String, let end = first["last_day"] as? String else { throw HealthMCPError.message("No real readable health series has completed syncing.") }
-            let manifest = try await tool("get_samples", ["series":name,"start":start,"end":end])
+            let manifest = try await tool("get_samples", ["series":name,"start":start,"end":min(end, HealthDates.day(Date().addingTimeInterval(-86400)))])
             guard let chunk = (manifest["chunks"] as? [[String: Any]])?.first, let path = chunk["path"] as? String, let url = chunk["url"] as? String else { throw HealthMCPError.message("Real health chunk missing.") }
             let envelope = try JSONDecoder().decode(Envelope.self, from: await request(url).0)
             let plaintext = try HealthCrypto.decrypt(envelope, key:model.privateKey, path:path)

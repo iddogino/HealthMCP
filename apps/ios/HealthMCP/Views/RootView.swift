@@ -51,7 +51,7 @@ struct OnboardingView: View {
                     Text("Bring your\nhistory with you.").font(.system(size: 40, weight: .semibold, design: .rounded)).tracking(-1)
                     Text("We’ll build an encrypted copy of the Apple Health history you’ve shared. The first backfill can take a while; future syncs only catch up on changes.").font(.title3).foregroundStyle(Brand.secondary)
                     Panel { VStack(alignment: .leading, spacing: 24) { feature("wifi", "A little time, a good connection", "Keep the app open and your iPhone charged for the fastest first sync."); feature("arrow.trianglehead.2.clockwise.rotate.90", "Built to resume", "If you leave or pause, your progress is saved."); feature("chart.bar.doc.horizontal", "Follow every step", "See what’s syncing now and review each run later.") } }
-                    Button { model.startFirstSync() } label: { Label("Start first sync", systemImage: "arrow.up.circle") }.buttonStyle(PrimaryButton()).accessibilityIdentifier("start-first-sync")
+                    Button { Task { await model.startFirstSync() } } label: { Label("Start first sync", systemImage: "arrow.up.circle") }.buttonStyle(PrimaryButton()).accessibilityIdentifier("start-first-sync")
                 default:
                     Eyebrow(text: "Building your private history")
                     Text(model.isSyncing ? "Your health,\non its way." : "Your bridge\nis ready.").font(.system(size: 40, weight: .semibold, design: .rounded)).tracking(-1)

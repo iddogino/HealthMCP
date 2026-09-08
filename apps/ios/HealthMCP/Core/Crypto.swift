@@ -29,8 +29,8 @@ enum Keychain {
     static func remove(_ name: String) { SecItemDelete([kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: name] as CFDictionary) }
 }
 
-struct DeviceIdentity {
-    private let signData: (Data) throws -> Data
+struct DeviceIdentity: Sendable {
+    private let signData: @Sendable (Data) throws -> Data
     let publicKey: Data
     init() throws {
         #if targetEnvironment(simulator)

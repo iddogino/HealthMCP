@@ -21,7 +21,9 @@ Both APNs private keys are Worker secrets, and their original downloads have own
 
 ## Sync and recovery
 
-The app commits HealthKit query anchors, sample identifiers, and dirty chunk markers together in SQLite. An interrupted upload leaves the dirty marker in place. A successful upload removes it. Each HealthKit page is limited to 1,000 records; up to four chunks upload concurrently. Each failed upload gets up to three attempts, and remaining failures are saved in history.
+The app commits HealthKit query anchors, sample identifiers, and dirty chunk markers together in SQLite. An interrupted upload leaves the dirty marker in place. A successful upload removes it and queues durable catalog publication. Each HealthKit page is limited to 1,000 records; up to four chunks upload concurrently between pages. Recent periods are seeded first, and successfully uploaded series become available through MCP before enumeration finishes. Each failed upload gets up to three attempts, and remaining failures are saved in history.
+
+The sync engine, HealthKit readers, and journal use background actors. Main-actor progress updates are throttled, prepared SQLite statements are reused, and HealthKit queries have cancellation and a 90-second timeout. Build 4 migrates the existing journal without resetting anchors or the private key. See [sync performance](sync-performance.md) for measurements and restart tests.
 
 Logical object paths remain stable as AES-GCM additional authenticated data. Physical R2 objects include a cache generation: `<user>/g<generation>/<series>/<period>.enc`. Reset/revocation gates every MCP request and download using D1. An old upload cannot overwrite the new generation after rotation.
 

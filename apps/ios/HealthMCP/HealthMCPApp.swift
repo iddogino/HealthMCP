@@ -37,6 +37,9 @@ import UserNotifications
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) { Task { await model.bootstrap(); await model.registerPush(deviceToken) } }
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) { model.pushStatus = "Unavailable on this device" }
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        #if DEBUG
+        try? DeviceValidation.write(["received_at": HealthDates.timestamp(Date()), "kind": "remote-notification"], name: "push.json")
+        #endif
         Task { @MainActor in
             await model.bootstrap(); model.startSync(trigger: "Agent requested sync"); await model.awaitSync()
             completionHandler(model.currentRun?.status == "complete" ? .newData : .failed)

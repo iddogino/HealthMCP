@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-struct APIClient {
+struct APIClient: Sendable {
     static let production = URL(string: "https://mcp.healthmcp.cc")!
     let identity: DeviceIdentity
     let baseURL: URL

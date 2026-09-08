@@ -48,9 +48,12 @@ struct SyncProgressCard: View {
     var body: some View {
         Panel {
             VStack(alignment: .leading, spacing: 18) {
-                HStack { Label(run.trigger == "Initial backfill" ? "First backfill" : "Sync in progress", systemImage: "arrow.triangle.2.circlepath").font(.headline).foregroundStyle(Brand.accent); Spacer(); Text("\(Int(run.progress * 100))%").font(.title2.monospacedDigit().weight(.semibold)) }
+                HStack { Label(run.trigger == "Initial backfill" ? "First backfill" : "Sync in progress", systemImage: "arrow.triangle.2.circlepath").font(.headline).foregroundStyle(Brand.accent); Spacer(); Text(run.phase == "streaming" ? "LIVE" : "\(Int(run.progress * 100))%").font(.title2.monospacedDigit().weight(.semibold)) }
                 ProgressView(value: run.progress).tint(Brand.accent).scaleEffect(x: 1, y: 1.6).accessibilityLabel("Sync progress").accessibilityValue("\(Int(run.progress * 100)) percent")
                 Text(run.stage).font(.subheadline).foregroundStyle(Brand.secondary).accessibilityIdentifier("sync-stage")
+                if run.phase == "streaming", let total = run.totalTypes {
+                    Text("\(run.completedTypes ?? 0) of \(total) data types scanned · recent uploads are available as they finish").font(.caption).foregroundStyle(Brand.secondary)
+                }
                 HStack { VStack(alignment: .leading, spacing: 4) { Text(run.totalChunks == 0 ? run.sampleCount.formatted() : "\(run.uploadedChunks) / \(run.totalChunks)").font(.title3.monospacedDigit().weight(.semibold)); Text(run.totalChunks == 0 ? "samples scanned" : "chunks processed").font(.caption).foregroundStyle(Brand.secondary) }; Spacer(); VStack(alignment: .trailing, spacing: 4) { Text(ByteCountFormatter.string(fromByteCount: Int64(run.uploadedBytes), countStyle: .file)).font(.title3.weight(.semibold)); Text("encrypted & uploaded").font(.caption).foregroundStyle(Brand.secondary) } }
                 if !run.errors.isEmpty { Text("\(run.errors.count) \(run.errors.count == 1 ? "item needs" : "items need") another attempt. Progress is saved.").font(.footnote).foregroundStyle(.orange) }
             }

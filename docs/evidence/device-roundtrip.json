@@ -1,0 +1,18 @@
+{
+  "checks": [
+    "Secure Enclave device signatures and OAuth PKCE pairing",
+    "MCP initialization and six tools",
+    "Live encrypted key-check decrypted on device",
+    "Real HealthKit \u2192 encryption \u2192 Cloudflare \u2192 MCP \u2192 local decryption matches HealthKit",
+    "Incorrect object path fails authentication"
+  ],
+  "completed_at": "2026-09-08T17:07:05Z",
+  "passed": true,
+  "series_count": 39,
+  "revocation": {
+    "passed": true,
+    "checked_at": "2026-09-08T17:12:03.509Z",
+    "status": 401,
+    "temporary_session_deleted": true
+  }
+}

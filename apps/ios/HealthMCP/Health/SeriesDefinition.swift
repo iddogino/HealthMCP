@@ -2,11 +2,11 @@ import Foundation
 import HealthKit
 
 enum HealthDates {
-    static var calendar: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(secondsFromGMT: 0)!; return c }
+    static let calendar: Calendar = { var c = Calendar(identifier: .gregorian); c.timeZone = TimeZone(secondsFromGMT: 0)!; return c }()
     static let iso = ISO8601DateFormatter()
-    static func timestamp(_ date: Date) -> String { iso.string(from: date) }
-    static func day(_ date: Date) -> String { String(timestamp(date).prefix(10)) }
-    static func month(_ date: Date) -> String { String(timestamp(date).prefix(7)) }
+    static func timestamp(_ date: Date) -> String { date.formatted(.iso8601) }
+    static func day(_ date: Date) -> String { let c = calendar.dateComponents([.year, .month, .day], from: date); return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!) }
+    static func month(_ date: Date) -> String { let c = calendar.dateComponents([.year, .month], from: date); return String(format: "%04d-%02d", c.year!, c.month!) }
     static func bounds(_ period: String) throws -> (Date, Date) {
         let part = String(period.prefix(10))
         let isMonth = part.count == 7
@@ -14,8 +14,8 @@ enum HealthDates {
         return (start, end)
     }
 }
-struct SeriesDefinition: Identifiable {
-    enum Kind { case quantity, cumulative, category, correlation, workout, ecg }
+struct SeriesDefinition: Identifiable, Sendable {
+    enum Kind: Sendable { case quantity, cumulative, category, correlation, workout, ecg }
     let id: String, hkName: String, unitName: String, chunk: String, group: String
     let kind: Kind
     var title: String { id.split(separator: "_").map { $0.capitalized }.joined(separator: " ") }
