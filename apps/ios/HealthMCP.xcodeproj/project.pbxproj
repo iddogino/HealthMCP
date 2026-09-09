@@ -25,8 +25,10 @@
 		8061F0D08E9A41C393C1129A /* Crypto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BEA5FCA32280D88DC4B7AD /* Crypto.swift */; };
 		83A0767550894E5A1498BB68 /* DeviceValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69467D24AF1B72C24B87A846 /* DeviceValidation.swift */; };
 		8890768878EA4AB2490F935F /* SummaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F803D54692D1255D0461469 /* SummaryReader.swift */; };
+		88A171B0CDD34C5D2A5A381F /* SyncAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7927A4E8D5AF1A1F66F0F968 /* SyncAvailabilityTests.swift */; };
 		88C74F38536A7992F35F5042 /* WorkoutReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB98D06AA712E6D6B961B563 /* WorkoutReader.swift */; };
 		98BBEE576B394BC6B6C3A1EB /* HealthMCPUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E192361A64FE945309752A1 /* HealthMCPUITests.swift */; };
+		9E2ADBF57118E5E3E91D7345 /* SyncAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1ABE71DCBD99C7E27DAC863 /* SyncAvailability.swift */; };
 		A88793C2C7F00E1995F55161 /* QuantityDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B66DEFF6DA8C9711F764A0 /* QuantityDefinitions.swift */; };
 		AC61A2BB32E733F72CF32362 /* crypto-v1.json in Resources */ = {isa = PBXBuildFile; fileRef = ED256CFE62986B4547441AEC /* crypto-v1.json */; };
 		AFCE597A6BC92CD53D05799D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = BD2D78ACE23A552110145475 /* PrivacyInfo.xcprivacy */; };
@@ -81,6 +83,7 @@
 		5EEED6B2A64353516BA8846A /* ReleaseRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReleaseRecoveryTests.swift; sourceTree = "<group>"; };
 		69467D24AF1B72C24B87A846 /* DeviceValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceValidation.swift; sourceTree = "<group>"; };
 		6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMCPApp.swift; sourceTree = "<group>"; };
+		7927A4E8D5AF1A1F66F0F968 /* SyncAvailabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAvailabilityTests.swift; sourceTree = "<group>"; };
 		7E192361A64FE945309752A1 /* HealthMCPUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMCPUITests.swift; sourceTree = "<group>"; };
 		7F42C55DA5C2B927A7BDF89B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncrementalSyncTests.swift; sourceTree = "<group>"; };
@@ -92,6 +95,7 @@
 		B59C3176B77E563AE212A216 /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		BD2D78ACE23A552110145475 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CB98D06AA712E6D6B961B563 /* WorkoutReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutReader.swift; sourceTree = "<group>"; };
+		D1ABE71DCBD99C7E27DAC863 /* SyncAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAvailability.swift; sourceTree = "<group>"; };
 		D4F9E50D065A6AED09836FC6 /* BackgroundTasks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BackgroundTasks.framework; path = System/Library/Frameworks/BackgroundTasks.framework; sourceTree = SDKROOT; };
 		D6D06504A6353A44E899BFE6 /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
 		ED256CFE62986B4547441AEC /* crypto-v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "crypto-v1.json"; sourceTree = "<group>"; };
@@ -156,6 +160,7 @@
 				EFC4F0966409E190F00A0AC9 /* AppModel.swift */,
 				90BEA5FCA32280D88DC4B7AD /* Crypto.swift */,
 				69467D24AF1B72C24B87A846 /* DeviceValidation.swift */,
+				D1ABE71DCBD99C7E27DAC863 /* SyncAvailability.swift */,
 				F2E7F57E76ECD82FD39C9622 /* SyncDiagnostics.swift */,
 				53AEDFEA5E11759CA66116C0 /* SyncEngine.swift */,
 				291077A16B80574E2A6C85C9 /* SyncStore.swift */,
@@ -214,6 +219,7 @@
 				21F4C52194C503667CD093B6 /* HealthMCPTests.swift */,
 				81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */,
 				5EEED6B2A64353516BA8846A /* ReleaseRecoveryTests.swift */,
+				7927A4E8D5AF1A1F66F0F968 /* SyncAvailabilityTests.swift */,
 				A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */,
 			);
 			path = HealthMCPTests;
@@ -378,6 +384,7 @@
 				BCCF572B02A9F515CAA04063 /* SettingsView.swift in Sources */,
 				8890768878EA4AB2490F935F /* SummaryReader.swift in Sources */,
 				0E150A88403ECC06BE939B21 /* SymptomDefinitions.swift in Sources */,
+				9E2ADBF57118E5E3E91D7345 /* SyncAvailability.swift in Sources */,
 				10FEEF5D72455A9B47C730DF /* SyncDiagnostics.swift in Sources */,
 				2AEC72362A40BB95B9C19971 /* SyncEngine.swift in Sources */,
 				65A9F565FA91CE4A6EBAADD9 /* SyncStore.swift in Sources */,
@@ -393,6 +400,7 @@
 				FFBA873FC7F29050D319C4A5 /* HealthMCPTests.swift in Sources */,
 				67E73DCB51B6FE23868FF049 /* IncrementalSyncTests.swift in Sources */,
 				49CC8CA97253194D59CD1C6B /* ReleaseRecoveryTests.swift in Sources */,
+				88A171B0CDD34C5D2A5A381F /* SyncAvailabilityTests.swift in Sources */,
 				561C06BF4CCF3F26E417526C /* SyncPerformanceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -491,7 +499,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -552,7 +560,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

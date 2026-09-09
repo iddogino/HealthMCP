@@ -21,6 +21,7 @@ struct SyncRun: Codable, Identifiable {
     var maxReadMS: Double?
     var maxIndexMS: Double?
     var maxChunkMS: Double?
+    var availability: SyncAvailability?
     var duration: TimeInterval { (finishedAt ?? Date()).timeIntervalSince(startedAt) }
     mutating func pauseForProtectedData() {
         status = "paused"
@@ -73,6 +74,8 @@ actor SyncStore {
         try execute("CREATE TABLE IF NOT EXISTS catalog_pending (series TEXT PRIMARY KEY)")
         try execute("CREATE TABLE IF NOT EXISTS chunk_visits (series TEXT NOT NULL, period TEXT NOT NULL, run_id TEXT NOT NULL, PRIMARY KEY(series,period))")
         try execute("CREATE TABLE IF NOT EXISTS coverage_pending (series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(series,period))")
+        try execute("CREATE TABLE IF NOT EXISTS recent_pending (series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(series,period))")
+        try execute("CREATE TABLE IF NOT EXISTS recent_cursors (type TEXT PRIMARY KEY, value BLOB NOT NULL, complete INTEGER NOT NULL)")
         if try rows("SELECT 1 FROM sync_metadata WHERE key='incremental-v1'").isEmpty {
             try execute("BEGIN IMMEDIATE")
             do {
@@ -144,7 +147,9 @@ actor SyncStore {
                 case SQLITE_TEXT: row[key] = String(cString: sqlite3_column_text(stmt, i))
                 case SQLITE_INTEGER: row[key] = Int(sqlite3_column_int64(stmt, i))
                 case SQLITE_FLOAT: row[key] = sqlite3_column_double(stmt, i)
-                case SQLITE_BLOB: row[key] = Data(bytes: sqlite3_column_blob(stmt, i), count: Int(sqlite3_column_bytes(stmt, i)))
+                case SQLITE_BLOB:
+                    if let bytes = sqlite3_column_blob(stmt, i) { row[key] = Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, i))) }
+                    else { row[key] = Data() }
                 default: break
                 }
             }
@@ -235,6 +240,7 @@ actor SyncStore {
             try execute("INSERT OR IGNORE INTO catalog_pending(series) VALUES(?)", [chunk.series])
             if let runID { try execute("INSERT OR REPLACE INTO chunk_visits(series,period,run_id) VALUES(?,?,?)", [chunk.series, chunk.period, runID]) }
             try execute("DELETE FROM coverage_pending WHERE series=? AND period=?", [chunk.series, chunk.period])
+            try execute("DELETE FROM recent_pending WHERE series=? AND period=?", [chunk.series, chunk.period])
             try clearDirty(chunk)
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }
@@ -283,7 +289,8 @@ actor SyncStore {
         for type in types { try execute("DELETE FROM anchors WHERE type=?", [type]) }
         for table in ["samples", "dirty", "derived", "uploaded", "catalog_pending", "chunk_visits", "coverage_pending"] { try execute("DELETE FROM \(table) WHERE series=?", [series]) }
         try execute("DELETE FROM sync_metadata WHERE key='recent-seed'")
+        try clearAvailability()
         }
     }
-    func resetIndex() throws { try transaction { for table in ["samples", "anchors", "dirty", "derived", "uploaded", "catalog_pending", "chunk_visits", "coverage_pending"] { try execute("DELETE FROM \(table)") }; try execute("DELETE FROM sync_metadata WHERE key='recent-seed'") } }
+    func resetIndex() throws { try transaction { for table in ["samples", "anchors", "dirty", "derived", "uploaded", "catalog_pending", "chunk_visits", "coverage_pending"] { try execute("DELETE FROM \(table)") }; try execute("DELETE FROM sync_metadata WHERE key='recent-seed'"); try clearAvailability() } }
 }

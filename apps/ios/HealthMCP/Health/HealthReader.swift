@@ -36,10 +36,10 @@ actor HealthReader {
         }
     }
     func stopObservers() { observers.forEach { healthStore.stop($0) }; observers.removeAll(); healthStore.disableAllBackgroundDelivery { _, _ in } }
-    func anchored(type: HKSampleType, anchor: HKQueryAnchor?) async throws -> ([HKSample], [HKDeletedObject], HKQueryAnchor?) {
+    func anchored(type: HKSampleType, anchor: HKQueryAnchor?, predicate: NSPredicate? = nil) async throws -> ([HKSample], [HKDeletedObject], HKQueryAnchor?) {
         try Task.checkCancellation()
         return try await runHealthQuery(store: healthStore) { finish in
-            HKAnchoredObjectQuery(type: type, predicate: nil, anchor: anchor, limit: 1000) { _, samples, deleted, next, error in
+            HKAnchoredObjectQuery(type: type, predicate: predicate, anchor: anchor, limit: 1000) { _, samples, deleted, next, error in
                 if let error { finish(.failure(error)) }
                 else { finish(.success((samples ?? [], deleted ?? [], next))) }
             }

@@ -10,12 +10,14 @@ final class HealthMCPUITests:XCTestCase {
     func testOverviewHistoryAndAgentNavigation() {
         let app=app()
         XCTAssertTrue(app.buttons["sync-now"].waitForExistence(timeout:10))
-        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Connect your agents to Apple Health"].exists)
+        for _ in 0..<4 where !app.buttons["sync-history"].isHittable { app.swipeUp() }
         app.buttons["sync-history"].tap()
         XCTAssertTrue(app.navigationBars["Sync history"].waitForExistence(timeout:5))
         XCTAssertTrue(app.staticTexts["Health data changed"].exists)
         app.buttons["Done"].tap()
         app.tabBars.buttons["Agents"].tap()
+        XCTAssertTrue(app.staticTexts["Connect your agent to HealthMCP"].exists)
         XCTAssertTrue(app.staticTexts["https://mcp.healthmcp.cc/mcp"].exists)
         app.tabBars.buttons["Settings"].tap()
         XCTAssertTrue(app.buttons["Reveal private key"].exists)
@@ -23,10 +25,30 @@ final class HealthMCPUITests:XCTestCase {
     }
     func testBackfillProgressAndPauseAreVisible() {
         let app=app(["-ui-syncing"])
+        XCTAssertTrue(app.staticTexts["availability-ready"].waitForExistence(timeout:10))
+        XCTAssertTrue(app.staticTexts["Synced all shared data since"].exists)
+        XCTAssertTrue(app.staticTexts["availability-since"].exists)
+        XCTAssertTrue(app.staticTexts["Start using your agent now. Older history is still syncing."].exists)
+        XCTAssertTrue(app.buttons["availability-agents"].isHittable)
+        for _ in 0..<3 where !app.buttons["pause-sync"].isHittable { app.swipeUp() }
         XCTAssertTrue(app.buttons["pause-sync"].waitForExistence(timeout:10))
         XCTAssertTrue(app.progressIndicators["Sync progress"].exists)
-        XCTAssertTrue(app.staticTexts["LIVE"].exists)
-        XCTAssertTrue(app.staticTexts["17 of 53 data types scanned · recent uploads are available as they finish"].exists)
+        XCTAssertFalse(app.staticTexts["LIVE"].exists)
+        XCTAssertTrue(app.staticTexts["17 of 53 data types scanned for older changes"].exists)
         XCTAssertTrue(app.staticTexts["Encrypting and uploading"].exists)
+    }
+    func testReadyRangeRemainsVisibleWhenPausedAndOpensAgents() {
+        let app=app(["-ui-syncing", "-ui-paused"])
+        XCTAssertTrue(app.staticTexts["availability-ready"].waitForExistence(timeout:10))
+        XCTAssertTrue(app.staticTexts["Start using your agent now. Resume sync to add older history."].exists)
+        app.buttons["availability-agents"].tap()
+        XCTAssertTrue(app.staticTexts["Connect your agent to HealthMCP"].waitForExistence(timeout:5))
+    }
+    func testUnconfirmedRecentScanDoesNotClaimACompleteRange() {
+        let app=app(["-ui-syncing", "-ui-recent-pending"])
+        XCTAssertTrue(app.staticTexts["Recent data comes first"].waitForExistence(timeout:10))
+        XCTAssertFalse(app.staticTexts["availability-ready"].exists)
+        XCTAssertFalse(app.staticTexts["availability-since"].exists)
+        XCTAssertFalse(app.staticTexts["LIVE"].exists)
     }
 }

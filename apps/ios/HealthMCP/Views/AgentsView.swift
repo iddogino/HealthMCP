@@ -11,7 +11,7 @@ struct AgentsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Eyebrow(text: "Choose your connections")
-                    Text("Better context.\nYour permission.").font(.system(size: 36, weight: .semibold, design: .rounded)).tracking(-1)
+                    Text("Connect your agent to HealthMCP").font(.system(size: 36, weight: .semibold, design: .rounded)).tracking(-1)
                     Text("Export the trusted client from Settings and connect it to your assistant. Approve its pairing code here, then save your key privately on your computer.").foregroundStyle(Brand.secondary)
                     Panel {
                         VStack(alignment: .leading, spacing: 16) {

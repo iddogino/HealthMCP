@@ -13,7 +13,7 @@ protocol HealthSyncReading: Sendable {
     func readPage(definitions: [SeriesDefinition], anchor: HKQueryAnchor?) async throws -> HealthPage
     func readChunk(_ chunk: DirtyChunk, definitions: [SeriesDefinition]) async throws -> PreparedChunk
     func readProfile() async throws -> Data
-    func recentRecords(definitions: [SeriesDefinition], now: Date) async throws -> [IndexedSample]
+    func readRecentRecordPage(definition: SeriesDefinition, since: Date, through: Date, anchor: HKQueryAnchor?) async throws -> HealthPage
 }
 protocol SyncUploading: Sendable {
     func upload(series: String, period: String, plaintext: Data, key: String) async throws -> Int
@@ -30,11 +30,13 @@ extension SyncUploading {
 }
 
 enum BackfillPlan {
+    static func recentStart(now: Date) -> Date { HealthDates.calendar.startOfDay(for: now).addingTimeInterval(-6 * 86400) }
     static func recentChunks(definitions: [SeriesDefinition], now: Date) -> [DirtyChunk] {
-        var chunks: Set<DirtyChunk> = [DirtyChunk(series: "daily_summary", period: HealthDates.month(now)), DirtyChunk(series: "activity_rings", period: HealthDates.month(now))]
-        for definition in definitions where definition.chunk != "record" {
-            for offset in 0..<(definition.chunk == "month" ? 1 : 7) {
-                let day = now.addingTimeInterval(-Double(offset) * 86400)
+        var chunks = Set<DirtyChunk>()
+        for offset in 0..<7 {
+            let day = now.addingTimeInterval(-Double(offset) * 86400)
+            for series in ["daily_summary", "activity_rings"] { chunks.insert(DirtyChunk(series: series, period: HealthDates.month(day))) }
+            for definition in definitions where definition.chunk != "record" {
                 chunks.insert(DirtyChunk(series: definition.id, period: definition.chunk == "month" ? HealthDates.month(day) : HealthDates.day(day)))
             }
         }
@@ -69,20 +71,43 @@ actor SyncEngine {
         }
         run.phase = "streaming"; run.totalTypes = queue.count; run.completedTypes = 0
         do {
+            run.availability = try await store.availability(for: definitions)
             try Task.checkCancellation()
             try await publish(force: true)
             run.stage = "Preparing recent data"
             _ = try await client.upload(series: "check", period: "single", plaintext: Data("\"ok\"".utf8), key: key)
             try await flushCoverage()
-            try await store.seedRecent(BackfillPlan.recentChunks(definitions: definitions, now: now), day: HealthDates.day(now))
+            let recentScan = try await store.beginRecentScan(definitions: definitions, now: now)
+            if recentScan == nil { try await store.seedRecent(BackfillPlan.recentChunks(definitions: definitions, now: now), day: HealthDates.day(now)) }
             try await store.markDirty("daily_summary", HealthDates.month(now), priority: 200)
             try await store.markDirty("activity_rings", HealthDates.month(now), priority: 200)
             let profile = try await reader.readProfile()
             run.uploadedBytes += try await client.upload(series: "profile", period: "single", plaintext: profile, key: key)
             try await store.recordUpload(DirtyChunk(series: "profile", period: "single"), count: 1, first: HealthDates.day(now), last: HealthDates.day(now))
-            for sample in try await reader.recentRecords(definitions: definitions, now: now) {
-                try await store.applyPage(type: sample.hkType, samples: [sample], deleted: [], anchor: nil)
-                try await store.markDirty(sample.series, sample.period, priority: 150)
+            if let scan = recentScan {
+                run.phase = "recent"
+                for definition in definitions where definition.chunk == "record" && definition.kind != .route {
+                    guard let type = definition.sampleType?.identifier else { continue }
+                    var cursor = try await store.recentCursor(for: type)
+                    while !cursor.complete {
+                        run.stage = "Checking recent \(definition.title.lowercased())"
+                        try await publish(force: true)
+                        let page = try await reader.readRecentRecordPage(definition: definition, since: scan.since, through: scan.through, anchor: cursor.anchor)
+                        try Task.checkCancellation()
+                        try await store.stageRecentRecords(type: type, page: page)
+                        _ = try await drainBatch(definitions: definitions, recentOnly: true)
+                        try await flushCatalog()
+                        cursor = try await store.recentCursor(for: type)
+                    }
+                }
+                while try await drainBatch(definitions: definitions, recentOnly: true) {
+                    try await flushCatalog()
+                    try await publish()
+                }
+                try await flushCatalog(force: true)
+                run.availability = try await store.confirmRecentScan(definitions: definitions)
+                run.phase = "streaming"
+                try await publish(force: true)
             }
             _ = try await drainBatch(definitions: definitions)
             try await flushCatalog(force: true)
@@ -119,6 +144,7 @@ actor SyncEngine {
             while try await drainBatch(definitions: definitions) {
                 try Task.checkCancellation()
                 try await flushCatalog()
+                if run.errors.isEmpty { run.availability = try await store.extendAvailability(definitions: definitions) }
                 let pending = try await store.dirtyCount()
                 run.progress = 0.6 + 0.4 * Double(run.uploadedChunks) / Double(max(1, run.uploadedChunks + pending))
                 try await publish()
@@ -127,6 +153,7 @@ actor SyncEngine {
             try await flushCatalog(force: true)
             if run.errors.isEmpty, try await store.dirtyCount() == 0 {
                 try await client.completeSync()
+                run.availability = try await store.extendAvailability(definitions: definitions, refreshedAt: now)
                 run.status = "complete"; run.progress = 1; run.stage = "Your encrypted cache is up to date"
             } else { run.status = "partial"; run.stage = "Some data needs another attempt. Completed uploads are available to your agents." }
         } catch where SyncInterruption.isHealthDataLocked(error) { run.pauseForProtectedData() }
@@ -139,9 +166,11 @@ actor SyncEngine {
         try? await publish(force: true)
         return run
     }
-    private func drainBatch(definitions: [SeriesDefinition]) async throws -> Bool {
+    private func drainBatch(definitions: [SeriesDefinition], recentOnly: Bool = false) async throws -> Bool {
         try Task.checkCancellation()
-        let chunks = try await store.nextDirty(limit: 4, excluding: failedChunks, notUploadedInRun: run.phase == "streaming" ? run.id : nil)
+        let chunks: [DirtyChunk]
+        if recentOnly { chunks = try await store.nextRecentChunks(limit: 4, excluding: failedChunks) }
+        else { chunks = try await store.nextDirty(limit: 4, excluding: failedChunks, notUploadedInRun: run.phase == "streaming" ? run.id : nil) }
         guard !chunks.isEmpty else { return false }
         run.stage = "Encrypting and uploading \(chunks.first!.series.replacingOccurrences(of: "_", with: " "))"
         try await publish()
@@ -249,13 +278,15 @@ extension HealthReader: HealthSyncReading {
         let fallback = String(chunk.period.prefix(10))
         return PreparedChunk(data: data, count: count, first: days.min() ?? fallback, last: days.max() ?? fallback)
     }
-    func recentRecords(definitions: [SeriesDefinition], now: Date) async throws -> [IndexedSample] {
-        var result: [IndexedSample] = []
-        for definition in definitions where definition.chunk == "record" && definition.kind != .route {
-            guard let type = definition.sampleType else { continue }
-            let samples = try await samples(type: type, predicate: HKQuery.predicateForSamples(withStart: now.addingTimeInterval(-7 * 86400), end: now), limit: 8, ascending: false)
-            result.append(contentsOf: samples.map { index($0, definition: definition) })
+    func readRecentRecordPage(definition: SeriesDefinition, since: Date, through: Date, anchor: HKQueryAnchor?) async throws -> HealthPage {
+        guard let type = definition.sampleType else { throw HealthMCPError.message("Unknown Health type.") }
+        let predicate = HKQuery.predicateForSamples(withStart: since, end: through, options: .strictEndDate)
+        let (samples, deleted, next) = try await anchored(type: type, anchor: anchor, predicate: predicate)
+        let hasMore = samples.count + deleted.count >= 1000
+        if hasMore {
+            guard let next else { throw HealthMCPError.message("Apple Health did not return a recent-data progress anchor.") }
+            if let anchor, try NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true) == NSKeyedArchiver.archivedData(withRootObject: next, requiringSecureCoding: true) { throw HealthMCPError.message("Apple Health did not advance its recent-data progress anchor.") }
         }
-        return result
+        return HealthPage(samples: samples.map { index($0, definition: definition) }, deleted: deleted.map(\.uuid), anchor: next, readCount: samples.count, hasMore: hasMore)
     }
 }

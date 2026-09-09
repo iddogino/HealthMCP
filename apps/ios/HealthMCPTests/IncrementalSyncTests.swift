@@ -27,7 +27,7 @@ private actor FixtureHealthReader: HealthSyncReading {
         return PreparedChunk(data: Data("[{\"v\":1}]".utf8), count: 1, first: "2026-09-01", last: "2026-09-01")
     }
     func readProfile() -> Data { Data("{}".utf8) }
-    func recentRecords(definitions: [SeriesDefinition], now: Date) -> [IndexedSample] { [] }
+    func readRecentRecordPage(definition: SeriesDefinition, since: Date, through: Date, anchor: HKQueryAnchor?) -> HealthPage { HealthPage(samples: [], deleted: [], anchor: nil, readCount: 0, hasMore: false) }
 }
 private actor FixtureUploader: SyncUploading {
     let events: SyncEvents

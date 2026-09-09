@@ -31,6 +31,7 @@ struct PrivacyOperation: Codable, Sendable {
     @Published var currentRun: SyncRun?
     @Published var history: [SyncRun] = []
     @Published var lastSyncedAt: Date?
+    @Published var syncAvailability: SyncAvailability?
     @Published var sampleCount = 0
     @Published var cloudBytes = 0
     @Published var cloudChunks = 0
@@ -116,6 +117,7 @@ struct PrivacyOperation: Codable, Sendable {
             if pendingPrivacy == nil, let legacy = try secureStorage.read("pending-rotation"), let key = String(data: legacy, encoding: .utf8) { try savePrivacy(PrivacyOperation(kind: .rotate, newKey: HealthCrypto.normalize(key))) }
             await reader.setRoutesEnabled(routesEnabled)
             sampleCount = try await journal!.totalSamples()
+            if pendingPrivacy == nil { syncAvailability = try await journal!.availability(for: definitions) }
             if isDemo { configureDemo(); initialized = true; return }
             if pendingPrivacy != nil { await retryPrivacy() }
             if api == nil { await initialize(); return }
@@ -224,7 +226,10 @@ struct PrivacyOperation: Codable, Sendable {
         do {
             let syncClient = try await client.forSync()
             try Task.checkCancellation()
-            let engine = SyncEngine(store: journal, reader: reader, client: syncClient, key: privateKey, run: initial) { [weak self] run in self?.currentRun = run }
+            let engine = SyncEngine(store: journal, reader: reader, client: syncClient, key: privateKey, run: initial) { [weak self] run in
+                self?.currentRun = run
+                if self?.pendingPrivacy == nil { self?.syncAvailability = run.availability }
+            }
             completed = await engine.sync(definitions: definitions)
         } catch {
             var failed = initial; failed.status = Task.isCancelled ? "paused" : "failed"
@@ -353,6 +358,7 @@ struct PrivacyOperation: Codable, Sendable {
         privacyExecuting = true; busy = true
         defer { privacyExecuting = false; busy = false }
         pauseSync(); await awaitSync()
+        syncAvailability = nil
         do {
             guard let client = api, let journal else { throw HealthMCPError.message("Secure storage is not ready. Unlock your iPhone and retry.") }
             switch operation.kind {
@@ -412,7 +418,7 @@ struct PrivacyOperation: Codable, Sendable {
         try secureStorage.remove("privacy-operation"); pendingPrivacy = nil
         initialized = false; api = nil; privateKey = ""
         onboarded = false; onboardingStep = 0; history = []; currentRun = nil; connections = []; sampleCount = 0
-        groups = []; routesEnabled = false; lastSyncedAt = nil; cloudBytes = 0; cloudChunks = 0; seriesCount = 0; keyVisible = false; keySaved = false
+        groups = []; routesEnabled = false; lastSyncedAt = nil; syncAvailability = nil; cloudBytes = 0; cloudChunks = 0; seriesCount = 0; keyVisible = false; keySaved = false
     }
     private func configureDemo() {
         onboarded = !ProcessInfo.processInfo.arguments.contains("-onboarding")
@@ -421,9 +427,14 @@ struct PrivacyOperation: Codable, Sendable {
         if ProcessInfo.processInfo.arguments.contains("-onboarding-key") { onboarded = false; onboardingStep = 1; keyVisible = true }
         if ProcessInfo.processInfo.arguments.contains("-ui-pairing") { selectedTab = 1 }
         lastSyncedAt = Date().addingTimeInterval(-240); sampleCount = 24836; cloudChunks = 186; cloudBytes = 1843200; seriesCount = 24
+        syncAvailability = SyncAvailability(since: try! HealthDates.bounds("2024-01-01").0, refreshedAt: lastSyncedAt!, scope: SyncAvailability.scope(for: definitions), historyComplete: true, hasSamples: true)
         var run = SyncRun(trigger: "Health data changed"); run.startedAt = Date().addingTimeInterval(-285); run.finishedAt = Date().addingTimeInterval(-240); run.status = "complete"; run.stage = "Your encrypted cache is up to date"; run.uploadedChunks = 18; run.totalChunks = 18; run.uploadedBytes = 182400; run.progress = 1
         history = [run]; pushStatus = "Device registered"
         if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { run.status = "running"; run.trigger = "Initial backfill"; run.progress = 0.62; run.totalChunks = 320; run.uploadedChunks = 144; run.stage = "Encrypting and uploading"; run.phase = "streaming"; run.completedTypes = 17; run.totalTypes = 53; currentRun = run }
+        if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { syncAvailability?.since = BackfillPlan.recentStart(now: Date()); syncAvailability?.historyComplete = false; lastSyncedAt = nil }
+        if ProcessInfo.processInfo.arguments.contains("-ui-recent-pending") { syncAvailability = nil; currentRun?.phase = "recent"; currentRun?.stage = "Checking recent workouts"; cloudChunks = 0; seriesCount = 0 }
+        if ProcessInfo.processInfo.arguments.contains("-ui-paused") { currentRun?.status = "paused"; currentRun?.stage = "Progress saved. Completed uploads are available to your agents." }
         if ProcessInfo.processInfo.arguments.contains("-ui-long-stage") { currentRun?.stage = "Reading Dietary Polyunsaturated Fat · uploads continue between pages while older health history is indexed" }
+        currentRun?.availability = syncAvailability
     }
 }

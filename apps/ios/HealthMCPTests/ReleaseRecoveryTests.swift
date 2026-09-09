@@ -134,7 +134,7 @@ private actor CoalescingReader: HealthSyncReading {
         return PreparedChunk(data: Data("[]".utf8), count: page, first: HealthDates.day(day), last: HealthDates.day(day))
     }
     func readProfile() -> Data { Data("{}".utf8) }
-    func recentRecords(definitions: [SeriesDefinition], now: Date) -> [IndexedSample] { [] }
+    func readRecentRecordPage(definition: SeriesDefinition, since: Date, through: Date, anchor: HKQueryAnchor?) -> HealthPage { HealthPage(samples: [], deleted: [], anchor: nil, readCount: 0, hasMore: false) }
 }
 private actor CoalescingUploader: SyncUploading {
     func upload(series: String, period: String, plaintext: Data, key: String) -> Int { plaintext.count }
