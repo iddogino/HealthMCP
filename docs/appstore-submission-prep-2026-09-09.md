@@ -1,5 +1,7 @@
 # App Store submission preparation — September 9, 2026
 
+**September 10 source update:** The [layered icon change](app-icon.md) also found that uploaded build 13 advertises iPad support (`UIDeviceFamily = [1,2]`), despite the intended iPhone-only scope stated below. The generated app target is corrected to `[1]` and validated locally. Replace build 13 with a newer upload containing this correction and the `.icon` asset before final submission preparation; the prior privacy, price and medical-device approvals also remain pending.
+
 **The version is staged and remains unsubmitted. Three owner approvals are pending before the ASC setup can be called complete:** publication of App Privacy, the Free V1 price, and the medical-device declaration. No review submission exists; release remains manual.
 
 [Open the prepared version](https://appstoreconnect.apple.com/apps/6809625249/distribution/ios/version/inflight).

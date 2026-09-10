@@ -1,0 +1,42 @@
+{
+  "fill": {
+    "solid": "srgb:0.02800,0.05400,0.11000,1.00000"
+  },
+  "groups": [
+    {
+      "layers": [
+        {
+          "name": "Spark",
+          "image-name": "Spark.svg",
+          "glass": true,
+          "fill": {
+            "solid": "srgb:0.46000,0.93000,0.85000,1.00000"
+          },
+          "fill-specializations": [
+            {
+              "appearance": "tinted",
+              "value": {
+                "solid": "srgb:1.00000,1.00000,1.00000,1.00000"
+              }
+            }
+          ],
+          "position": {
+            "scale": 1,
+            "translation-in-points": [0, 0]
+          }
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.25
+      },
+      "translucency": {
+        "enabled": true,
+        "value": 0.15
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

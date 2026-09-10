@@ -18,6 +18,7 @@
 		4C5C40D5A213DF3B1263547E /* HealthMCPApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */; };
 		561C06BF4CCF3F26E417526C /* SyncPerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */; };
 		576EFD29FF7B2F9CDC9902A4 /* HealthQueryRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B1BE0EAE9729ED39A1FA60 /* HealthQueryRunner.swift */; };
+		5E7D2BC25F583B280618261D /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B2E054E1D59E72BE6879411E /* AppIcon.icon */; };
 		62C441F2354626DC6A648F43 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D86803C076B555FFAB82A6F /* RootView.swift */; };
 		65A9F565FA91CE4A6EBAADD9 /* SyncStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 291077A16B80574E2A6C85C9 /* SyncStore.swift */; };
 		67E73DCB51B6FE23868FF049 /* IncrementalSyncTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */; };
@@ -92,6 +93,7 @@
 		98B1137B1C66FA2A40D53F38 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		A9AEA0BC3E5FC97FB00503CD /* SyncPerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPerformanceTests.swift; sourceTree = "<group>"; };
 		ADDD9F3F5D8DF47DD42EFF27 /* HealthMCP.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HealthMCP.entitlements; sourceTree = "<group>"; };
+		B2E054E1D59E72BE6879411E /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		B59C3176B77E563AE212A216 /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		BD2D78ACE23A552110145475 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CB98D06AA712E6D6B961B563 /* WorkoutReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutReader.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 		639D25882A9580BF511EB13B /* HealthMCP */ = {
 			isa = PBXGroup;
 			children = (
+				B2E054E1D59E72BE6879411E /* AppIcon.icon */,
 				F7F01183FF5EF954D769FC49 /* Assets.xcassets */,
 				ADDD9F3F5D8DF47DD42EFF27 /* HealthMCP.entitlements */,
 				6DDC5159D6F9648B4B076E56 /* HealthMCPApp.swift */,
@@ -347,6 +350,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5E7D2BC25F583B280618261D /* AppIcon.icon in Resources */,
 				EF0E4664FC6F50874C5CDD55 /* Assets.xcassets in Resources */,
 				0A0242C27DC834D21656FD6A /* HealthMCP-Private-Client.zip in Resources */,
 				AFCE597A6BC92CD53D05799D /* PrivacyInfo.xcprivacy in Resources */,
@@ -461,7 +465,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = cc.healthmcp.app;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -609,7 +613,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = cc.healthmcp.app;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};

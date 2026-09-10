@@ -1,0 +1,56 @@
+{
+  "checkedAtUTC": "2026-09-10T15:48:58.331448+00:00",
+  "source": "apps/ios/HealthMCP/AppIcon.icon",
+  "xcodeVersion": "26.3",
+  "buildConfiguration": "Release",
+  "minimumOS": "18.0",
+  "deviceFamily": [
+    1
+  ],
+  "buildSucceeded": true,
+  "buildWarnings": [],
+  "buildErrors": [],
+  "iconComponents": [
+    "native navy background fill",
+    "transparent outlined Spark.svg foreground"
+  ],
+  "compiledVector": true,
+  "compiledGroup": true,
+  "legacyPhoneAppearances": [
+    "Default",
+    "ISAppearanceTintable",
+    "UIAppearanceDark"
+  ],
+  "renderedAndVisuallyChecked": [
+    "Default",
+    "Dark",
+    "TintedDark",
+    "ClearLight"
+  ],
+  "simulators": [
+    {
+      "device": "iPhone 17 Pro Max",
+      "iOS": "26.3",
+      "installed": true,
+      "appLibraryIconVisuallyChecked": true
+    },
+    {
+      "device": "iPhone SE (3rd generation)",
+      "iOS": "18.1",
+      "installed": true,
+      "launchSucceeded": true
+    }
+  ],
+  "sourceFiles": {
+    "apps/ios/HealthMCP/AppIcon.icon/Assets/Spark.svg": "5aecab3aeaafc48622abb894de9ad50fd49d1f7cbb9ae70879f8c02995826f40",
+    "apps/ios/HealthMCP/AppIcon.icon/icon.json": "a631a0c9f91e9023e77d4e101dbcfb292d3965f73ad19d0f00a6daeaf3660804"
+  },
+  "uploadedToASC": false,
+  "submittedForReview": false,
+  "existingASCBuild": "13",
+  "existingASCBuildDeviceFamily": [
+    1,
+    2
+  ],
+  "newBuildRequiredForASC": true
+}

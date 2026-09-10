@@ -1,6 +1,9 @@
 name: HealthMCP
 options:
   bundleIdPrefix: cc.healthmcp
+  fileTypes:
+    icon:
+      file: true
   deploymentTarget:
     iOS: '18.0'
 settings:
@@ -22,6 +25,7 @@ targets:
         INFOPLIST_FILE: HealthMCP/Info.plist
         CODE_SIGN_ENTITLEMENTS: HealthMCP/HealthMCP.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: '1'
         CODE_SIGN_STYLE: Automatic
         SUPPORTS_MACCATALYST: NO
     dependencies:
