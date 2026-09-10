@@ -52,6 +52,7 @@ enum BackfillPlan {
 // No UI work runs here. Each turn commits one HealthKit page, then drains a
 // bounded upload batch. There is never an unbounded producer queue in memory.
 actor SyncEngine {
+    private static let uploadConcurrency = 8
     private let store: SyncStore
     private let reader: any HealthSyncReading
     private let client: any SyncUploading
@@ -71,6 +72,7 @@ actor SyncEngine {
     func requestRecentRefresh() { refreshRequested = true }
 
     func sync(definitions: [SeriesDefinition], now: Date = Date(), clock: (@Sendable () -> Date)? = nil) async -> SyncRun {
+        if SyncPerformance.enabled { await SyncPerformance.shared.reset() }
         let started = ContinuousClock.now
         currentTime = clock ?? { now.addingTimeInterval(Self.milliseconds(since: started) / 1000) }
         let grouped = Dictionary(grouping: definitions.filter { $0.sampleType != nil }, by: { $0.sampleType!.identifier })
@@ -195,9 +197,9 @@ actor SyncEngine {
     private func drainBatch(definitions: [SeriesDefinition], recentOnly: Bool = false, freshWindow: String? = nil) async throws -> Bool {
         try Task.checkCancellation()
         let chunks: [DirtyChunk]
-        if let freshWindow { chunks = try await store.nextFreshChunks(window: freshWindow, limit: 4, excluding: failedChunks) }
-        else if recentOnly { chunks = try await store.nextRecentChunks(limit: 4, excluding: failedChunks) }
-        else { chunks = try await store.nextDirty(limit: 4, excluding: failedChunks, notUploadedInRun: run.phase == "streaming" ? run.id : nil) }
+        if let freshWindow { chunks = try await store.nextFreshChunks(window: freshWindow, limit: Self.uploadConcurrency, excluding: failedChunks) }
+        else if recentOnly { chunks = try await store.nextRecentChunks(limit: Self.uploadConcurrency, excluding: failedChunks) }
+        else { chunks = try await store.nextDirty(limit: Self.uploadConcurrency, excluding: failedChunks, notUploadedInRun: run.phase == "streaming" ? run.id : nil) }
         guard !chunks.isEmpty else { return false }
         run.stage = "Encrypting and uploading \(chunks.first!.series.replacingOccurrences(of: "_", with: " "))"
         try await publish()
@@ -209,6 +211,7 @@ actor SyncEngine {
                     let start = ContinuousClock.now
                     do {
                         let payload = try await reader.readChunk(chunk, definitions: definitions)
+                        if SyncPerformance.enabled { await SyncPerformance.shared.record("prepare_chunk", since: start) }
                         try Task.checkCancellation()
                         var bytes = 0
                         for attempt in 0..<3 {
@@ -222,7 +225,9 @@ actor SyncEngine {
                                 try await Task.sleep(for: .seconds(delay))
                             }
                         }
+                        let acknowledgeStart = ContinuousClock.now
                         try await store.recordUpload(chunk, count: payload.count, first: payload.first, last: payload.last, runID: runID)
+                        if SyncPerformance.enabled { await SyncPerformance.shared.record("acknowledge_chunk", since: acknowledgeStart) }
                         return (chunk, bytes, Self.milliseconds(since: start), nil, false)
                     } catch {
                         return (chunk, -1, Self.milliseconds(since: start), error is CancellationError || Task.isCancelled ? nil : error.localizedDescription, SyncInterruption.isHealthDataLocked(error))
@@ -298,18 +303,16 @@ actor SyncEngine {
     }
     private func flushCatalog(force: Bool = false) async throws {
         guard force || lastCatalogUpdate.duration(to: .now) >= .seconds(3) else { return }
-        for series in try await store.pendingCatalog() {
-            let summary = try await store.uploadedSummary(series)
-            try await client.updateCatalog(summary)
-            try await store.acknowledgeCatalog(series)
-        }
+        let start = ContinuousClock.now
+        try await CatalogPublisher.flush(store: store, client: client)
         lastCatalogUpdate = .now
+        if SyncPerformance.enabled { await SyncPerformance.shared.record("publish_catalog", since: start) }
     }
     private func publish(force: Bool = false) async throws {
         run.totalChunks = run.uploadedChunks + (try await store.dirtyCount())
         if force || lastSave.duration(to: .now) >= .seconds(1) {
             try await store.save(run); lastSave = .now
-            SyncDiagnostics.progress(run)
+            SyncDiagnostics.progress(run, timings: SyncPerformance.enabled ? await SyncPerformance.shared.snapshot() : [:])
         }
         if force || lastUIUpdate.duration(to: .now) >= .milliseconds(250) { await progress(run); lastUIUpdate = .now }
     }

@@ -1,0 +1,806 @@
+{
+  "date": "2026-09-10",
+  "build": "1.0.0 (16)",
+  "worker_version": "0ea64727-fa3d-4997-bb5f-f8ba99fe6c1f",
+  "benchmarks": {
+    "baseline": {
+      "at": "2026-09-10T17:21:05.327Z",
+      "base": "https://mcp.healthmcp.cc",
+      "concurrency": 4,
+      "cleaned": true,
+      "measurements": {
+        "new": {
+          "requests": 24,
+          "seconds": 5.861276542000001,
+          "requests_per_second": 4.094671157046389,
+          "mean_ms": 898.0283836666667,
+          "p50_ms": 857.2882500000001,
+          "p95_ms": 1082.7352920000003,
+          "mean_bytes": 3939.1666666666665,
+          "server_mean_ms": {}
+        },
+        "replacement": {
+          "requests": 24,
+          "seconds": 6.624578333,
+          "requests_per_second": 3.6228720974503723,
+          "mean_ms": 1024.7055311666663,
+          "p50_ms": 1027.2229579999994,
+          "p95_ms": 1228.998458,
+          "mean_bytes": 3938.8333333333335,
+          "server_mean_ms": {}
+        },
+        "empty_delete": {
+          "requests": 24,
+          "seconds": 3.0019090000000013,
+          "requests_per_second": 7.994912570634217,
+          "mean_ms": 441.7233559999998,
+          "p50_ms": 432.6643750000003,
+          "p95_ms": 486.19425000000047,
+          "mean_bytes": 0,
+          "server_mean_ms": {}
+        },
+        "catalog": {
+          "requests": 8,
+          "seconds": 2.0729884579999998,
+          "requests_per_second": 3.8591628280064456,
+          "mean_ms": 258.7284843749999,
+          "p50_ms": 262.3902080000007,
+          "p95_ms": 317.10649999999805,
+          "mean_bytes": 86,
+          "server_mean_ms": {}
+        }
+      }
+    },
+    "baseline-timed-retry": {
+      "at": "2026-09-10T17:26:56.329Z",
+      "base": "https://mcp.healthmcp.cc",
+      "concurrency": 4,
+      "cleaned": true,
+      "measurements": {
+        "new": {
+          "requests": 24,
+          "seconds": 10.153999584000001,
+          "requests_per_second": 2.3636006483413303,
+          "mean_ms": 1580.5881684166668,
+          "p50_ms": 1531.4704160000006,
+          "p95_ms": 1803.243333,
+          "mean_bytes": 3938.3333333333335,
+          "server_mean_ms": {
+            "worker": 1520.4166666666667,
+            "d1": 591.2083333333334,
+            "r2": 929.125,
+            "d1_calls": 11,
+            "r2_calls": 1
+          }
+        },
+        "replacement": {
+          "requests": 24,
+          "seconds": 14.517093875,
+          "requests_per_second": 1.6532234486222195,
+          "mean_ms": 2329.7928541666665,
+          "p50_ms": 2286.877708,
+          "p95_ms": 2644.505583,
+          "mean_bytes": 3938.6666666666665,
+          "server_mean_ms": {
+            "worker": 2274.5,
+            "d1": 683.9583333333334,
+            "r2": 1590.5416666666667,
+            "d1_calls": 13,
+            "r2_calls": 2
+          }
+        },
+        "empty_delete": {
+          "requests": 24,
+          "seconds": 3.094975416000001,
+          "requests_per_second": 7.754504244501564,
+          "mean_ms": 485.4726337083339,
+          "p50_ms": 487.57820899999933,
+          "p95_ms": 564.5445,
+          "mean_bytes": 0,
+          "server_mean_ms": {
+            "worker": 440.5,
+            "d1": 440.5,
+            "r2": 0,
+            "d1_calls": 9,
+            "r2_calls": 0
+          }
+        },
+        "catalog": {
+          "requests": 8,
+          "seconds": 2.0104761660000006,
+          "requests_per_second": 3.9791568461697437,
+          "mean_ms": 250.71426562499983,
+          "p50_ms": 249.73983299999963,
+          "p95_ms": 309.01395799999955,
+          "mean_bytes": 86,
+          "server_mean_ms": {
+            "worker": 216.125,
+            "d1": 216.125,
+            "r2": 0,
+            "d1_calls": 6,
+            "r2_calls": 0
+          }
+        }
+      }
+    },
+    "optimized": {
+      "at": "2026-09-10T17:30:38.512Z",
+      "base": "https://mcp.healthmcp.cc",
+      "concurrency": 4,
+      "cleaned": true,
+      "measurements": {
+        "new": {
+          "requests": 24,
+          "seconds": 8.557285834,
+          "requests_per_second": 2.8046275963626996,
+          "mean_ms": 1343.9244044583334,
+          "p50_ms": 1336.9321250000003,
+          "p95_ms": 1445.682084,
+          "mean_bytes": 3938,
+          "server_mean_ms": {
+            "worker": 1274.75,
+            "d1": 276.25,
+            "r2": 998.0416666666666,
+            "d1_calls": 5,
+            "r2_calls": 1
+          }
+        },
+        "replacement": {
+          "requests": 24,
+          "seconds": 8.232189875000001,
+          "requests_per_second": 2.9153846503084937,
+          "mean_ms": 1290.5968228333338,
+          "p50_ms": 1285.684709000001,
+          "p95_ms": 1401.7577920000003,
+          "mean_bytes": 3938.5,
+          "server_mean_ms": {
+            "worker": 1249.0416666666667,
+            "d1": 266.5833333333333,
+            "r2": 982.375,
+            "d1_calls": 6,
+            "r2_calls": 1
+          }
+        },
+        "empty_delete": {
+          "requests": 24,
+          "seconds": 2.2165169579999966,
+          "requests_per_second": 10.827798954290715,
+          "mean_ms": 263.50189245833343,
+          "p50_ms": 243.15120899999965,
+          "p95_ms": 384.30995800000164,
+          "mean_bytes": 0,
+          "server_mean_ms": {
+            "worker": 206.5,
+            "d1": 206.5,
+            "r2": 0,
+            "d1_calls": 4,
+            "r2_calls": 0
+          }
+        },
+        "catalog": {
+          "requests": 8,
+          "seconds": 2.1253547089999993,
+          "requests_per_second": 3.7640775754387277,
+          "mean_ms": 265.2227342499991,
+          "p50_ms": 251.28108300000167,
+          "p95_ms": 448.51420799999687,
+          "mean_bytes": 86,
+          "server_mean_ms": {
+            "worker": 214.25,
+            "d1": 214.25,
+            "r2": 0,
+            "d1_calls": 4,
+            "r2_calls": 0
+          }
+        }
+      }
+    },
+    "optimized-eight": {
+      "at": "2026-09-10T17:31:58.612Z",
+      "base": "https://mcp.healthmcp.cc",
+      "concurrency": 8,
+      "cleaned": true,
+      "measurements": {
+        "new": {
+          "requests": 24,
+          "seconds": 4.992682958,
+          "requests_per_second": 4.807034654893062,
+          "mean_ms": 1439.6838959166664,
+          "p50_ms": 1460.2842919999998,
+          "p95_ms": 1669.290208,
+          "mean_bytes": 3938.3333333333335,
+          "server_mean_ms": {
+            "worker": 1334.4166666666667,
+            "d1": 311.5833333333333,
+            "r2": 1021.4166666666666,
+            "d1_calls": 5,
+            "r2_calls": 1
+          }
+        },
+        "replacement": {
+          "requests": 24,
+          "seconds": 4.457426249999999,
+          "requests_per_second": 5.384273043216364,
+          "mean_ms": 1345.0819219166663,
+          "p50_ms": 1345.734375,
+          "p95_ms": 1444.4244170000002,
+          "mean_bytes": 3938.5,
+          "server_mean_ms": {
+            "worker": 1306.875,
+            "d1": 316.0833333333333,
+            "r2": 990.5833333333334,
+            "d1_calls": 6,
+            "r2_calls": 1
+          }
+        },
+        "empty_delete": {
+          "requests": 24,
+          "seconds": 1.350612083,
+          "requests_per_second": 17.769721078380137,
+          "mean_ms": 421.35383158333326,
+          "p50_ms": 418.1773750000011,
+          "p95_ms": 622.3174580000014,
+          "mean_bytes": 0,
+          "server_mean_ms": {
+            "worker": 385,
+            "d1": 385,
+            "r2": 0,
+            "d1_calls": 4,
+            "r2_calls": 0
+          }
+        },
+        "catalog": {
+          "requests": 8,
+          "seconds": 1.542964,
+          "requests_per_second": 5.1848260879709445,
+          "mean_ms": 192.5972241249999,
+          "p50_ms": 199.1245830000007,
+          "p95_ms": 290.8472500000007,
+          "mean_bytes": 86,
+          "server_mean_ms": {
+            "worker": 154.875,
+            "d1": 154.875,
+            "r2": 0,
+            "d1_calls": 4,
+            "r2_calls": 0
+          }
+        }
+      }
+    }
+  },
+  "phone_first": {
+    "confirmed_since": "2026-09-04T00:00:00Z",
+    "errors": [],
+    "history_complete": false,
+    "max_chunk_ms": 1892.2535,
+    "max_index_ms": 315.176625,
+    "max_read_ms": 46.251583,
+    "pending_chunks": 22385,
+    "phase": "streaming",
+    "processed_chunks": 486,
+    "recent_data_checked_at": "2026-09-10T17:37:07Z",
+    "scanned_samples": 7000,
+    "status": "running",
+    "timings": {
+      "acknowledge_chunk": {
+        "count": 486,
+        "max_ms": 16.173334,
+        "mean_ms": 0.6043759567901233,
+        "recent_p50_ms": 0.208875,
+        "recent_p95_ms": 0.667875
+      },
+      "encrypt": {
+        "count": 464,
+        "max_ms": 13.093167,
+        "mean_ms": 0.5364854245689652,
+        "recent_p50_ms": 0.131084,
+        "recent_p95_ms": 2.131125
+      },
+      "prepare_chunk": {
+        "count": 486,
+        "max_ms": 1125.728416,
+        "mean_ms": 374.5056748106993,
+        "recent_p50_ms": 654.67425,
+        "recent_p95_ms": 1066.040417
+      },
+      "publish_catalog": {
+        "count": 24,
+        "max_ms": 1879.00875,
+        "mean_ms": 393.4974531666666,
+        "recent_p50_ms": 241.16825,
+        "recent_p95_ms": 1510.295958
+      },
+      "request_catalog": {
+        "count": 105,
+        "max_ms": 667.628167,
+        "mean_ms": 251.79185360000002,
+        "recent_p50_ms": 218.229792,
+        "recent_p95_ms": 510.803584
+      },
+      "request_delete": {
+        "count": 24,
+        "max_ms": 414.588333,
+        "mean_ms": 274.2394965833333,
+        "recent_p50_ms": 258.668542,
+        "recent_p95_ms": 366.825542
+      },
+      "request_other": {
+        "count": 19,
+        "max_ms": 396.920292,
+        "mean_ms": 243.82166221052634,
+        "recent_p50_ms": 237.86,
+        "recent_p95_ms": 396.920292
+      },
+      "request_upload": {
+        "count": 464,
+        "max_ms": 1160.581833,
+        "mean_ms": 517.4769757586207,
+        "recent_p50_ms": 494.049083,
+        "recent_p95_ms": 620.802917
+      },
+      "server_catalog_d1": {
+        "count": 105,
+        "max_ms": 618,
+        "mean_ms": 204.15238095238095,
+        "recent_p50_ms": 173,
+        "recent_p95_ms": 470
+      },
+      "server_catalog_r2": {
+        "count": 105,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_catalog_worker": {
+        "count": 105,
+        "max_ms": 618,
+        "mean_ms": 204.32380952380953,
+        "recent_p50_ms": 173,
+        "recent_p95_ms": 470
+      },
+      "server_delete_d1": {
+        "count": 24,
+        "max_ms": 356,
+        "mean_ms": 225.91666666666666,
+        "recent_p50_ms": 213,
+        "recent_p95_ms": 294
+      },
+      "server_delete_r2": {
+        "count": 24,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_delete_worker": {
+        "count": 24,
+        "max_ms": 356,
+        "mean_ms": 226.29166666666666,
+        "recent_p50_ms": 214,
+        "recent_p95_ms": 295
+      },
+      "server_other_d1": {
+        "count": 19,
+        "max_ms": 262,
+        "mean_ms": 181.26315789473685,
+        "recent_p50_ms": 189,
+        "recent_p95_ms": 262
+      },
+      "server_other_r2": {
+        "count": 19,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_other_worker": {
+        "count": 19,
+        "max_ms": 262,
+        "mean_ms": 181.26315789473685,
+        "recent_p50_ms": 189,
+        "recent_p95_ms": 262
+      },
+      "server_upload_d1": {
+        "count": 464,
+        "max_ms": 469,
+        "mean_ms": 267.7909482758621,
+        "recent_p50_ms": 255,
+        "recent_p95_ms": 332
+      },
+      "server_upload_r2": {
+        "count": 464,
+        "max_ms": 725,
+        "mean_ms": 174.6206896551724,
+        "recent_p50_ms": 165,
+        "recent_p95_ms": 225
+      },
+      "server_upload_worker": {
+        "count": 464,
+        "max_ms": 942,
+        "mean_ms": 442.8103448275862,
+        "recent_p50_ms": 429,
+        "recent_p95_ms": 547
+      },
+      "sign": {
+        "count": 612,
+        "max_ms": 28.759167,
+        "mean_ms": 8.349915116013081,
+        "recent_p50_ms": 6.439916,
+        "recent_p95_ms": 14.730083
+      },
+      "upload_pacing": {
+        "count": 488,
+        "max_ms": 492.031917,
+        "mean_ms": 9.967340249999996,
+        "recent_p50_ms": 0.002167,
+        "recent_p95_ms": 0.003417
+      }
+    },
+    "types_complete": 45,
+    "types_total": 53,
+    "updated_at": "2026-09-10T17:38:39Z",
+    "uploaded_bytes": 1337041
+  },
+  "tests": {
+    "native_ios_26_3": 55,
+    "worker_protocol": 33,
+    "local_e2e": 21,
+    "production_e2e": 21
+  },
+  "ipa_sha256": "dcdc2165d7302facd8ff3becc2dfd9bbd2f4d43df5c93525ad1a384695a24bbb",
+  "phone_second": {
+    "confirmed_since": "2026-09-04T00:00:00Z",
+    "errors": [],
+    "history_complete": false,
+    "max_chunk_ms": 1892.2535,
+    "max_index_ms": 317.869083,
+    "max_read_ms": 56.504792,
+    "pending_chunks": 22195,
+    "phase": "streaming",
+    "processed_chunks": 886,
+    "recent_data_checked_at": "2026-09-10T17:37:07Z",
+    "scanned_samples": 51000,
+    "status": "running",
+    "timings": {
+      "acknowledge_chunk": {
+        "count": 886,
+        "max_ms": 28.838167,
+        "mean_ms": 1.2887574898419867,
+        "recent_p50_ms": 0.670917,
+        "recent_p95_ms": 11.693208
+      },
+      "encrypt": {
+        "count": 864,
+        "max_ms": 13.093167,
+        "mean_ms": 0.5540218900462959,
+        "recent_p50_ms": 0.149,
+        "recent_p95_ms": 1.390792
+      },
+      "prepare_chunk": {
+        "count": 886,
+        "max_ms": 1300.946583,
+        "mean_ms": 319.0798469514673,
+        "recent_p50_ms": 8.247625,
+        "recent_p95_ms": 493.058041
+      },
+      "publish_catalog": {
+        "count": 43,
+        "max_ms": 1879.00875,
+        "mean_ms": 523.1136696511628,
+        "recent_p50_ms": 250.002125,
+        "recent_p95_ms": 1408.978583
+      },
+      "request_catalog": {
+        "count": 277,
+        "max_ms": 667.628167,
+        "mean_ms": 244.30317781588448,
+        "recent_p50_ms": 240.089375,
+        "recent_p95_ms": 375.291
+      },
+      "request_delete": {
+        "count": 24,
+        "max_ms": 414.588333,
+        "mean_ms": 274.2394965833333,
+        "recent_p50_ms": 258.668542,
+        "recent_p95_ms": 366.825542
+      },
+      "request_other": {
+        "count": 34,
+        "max_ms": 411.250375,
+        "mean_ms": 242.04631247058825,
+        "recent_p50_ms": 245.192875,
+        "recent_p95_ms": 396.920292
+      },
+      "request_upload": {
+        "count": 864,
+        "max_ms": 1160.581833,
+        "mean_ms": 540.7511752488425,
+        "recent_p50_ms": 595.08975,
+        "recent_p95_ms": 793.274667
+      },
+      "server_catalog_d1": {
+        "count": 277,
+        "max_ms": 618,
+        "mean_ms": 193.25992779783394,
+        "recent_p50_ms": 191,
+        "recent_p95_ms": 256
+      },
+      "server_catalog_r2": {
+        "count": 277,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_catalog_worker": {
+        "count": 277,
+        "max_ms": 618,
+        "mean_ms": 193.45848375451263,
+        "recent_p50_ms": 191,
+        "recent_p95_ms": 256
+      },
+      "server_delete_d1": {
+        "count": 24,
+        "max_ms": 356,
+        "mean_ms": 225.91666666666666,
+        "recent_p50_ms": 213,
+        "recent_p95_ms": 294
+      },
+      "server_delete_r2": {
+        "count": 24,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_delete_worker": {
+        "count": 24,
+        "max_ms": 356,
+        "mean_ms": 226.29166666666666,
+        "recent_p50_ms": 214,
+        "recent_p95_ms": 295
+      },
+      "server_other_d1": {
+        "count": 34,
+        "max_ms": 322,
+        "mean_ms": 182.91176470588235,
+        "recent_p50_ms": 196,
+        "recent_p95_ms": 262
+      },
+      "server_other_r2": {
+        "count": 34,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_other_worker": {
+        "count": 34,
+        "max_ms": 322,
+        "mean_ms": 182.91176470588235,
+        "recent_p50_ms": 196,
+        "recent_p95_ms": 262
+      },
+      "server_upload_d1": {
+        "count": 864,
+        "max_ms": 587,
+        "mean_ms": 288.33449074074076,
+        "recent_p50_ms": 347,
+        "recent_p95_ms": 525
+      },
+      "server_upload_r2": {
+        "count": 864,
+        "max_ms": 725,
+        "mean_ms": 171.28240740740742,
+        "recent_p50_ms": 167,
+        "recent_p95_ms": 215
+      },
+      "server_upload_worker": {
+        "count": 864,
+        "max_ms": 942,
+        "mean_ms": 460.07523148148147,
+        "recent_p50_ms": 518,
+        "recent_p95_ms": 683
+      },
+      "sign": {
+        "count": 1200,
+        "max_ms": 33.521125,
+        "mean_ms": 10.335149877500008,
+        "recent_p50_ms": 11.704834,
+        "recent_p95_ms": 27.125333
+      },
+      "upload_pacing": {
+        "count": 888,
+        "max_ms": 492.031917,
+        "mean_ms": 15.023298612612622,
+        "recent_p50_ms": 0.002208,
+        "recent_p95_ms": 309.097208
+      }
+    },
+    "types_complete": 45,
+    "types_total": 53,
+    "updated_at": "2026-09-10T17:40:02Z",
+    "uploaded_bytes": 2685172
+  },
+  "phone_interval": {
+    "seconds": 83.0,
+    "chunks": 400,
+    "bytes": 1348131,
+    "chunks_per_second": 4.819277108433735
+  },
+  "phone_final": {
+    "confirmed_since": "2026-09-04T00:00:00Z",
+    "errors": [],
+    "history_complete": false,
+    "max_chunk_ms": 1892.2535,
+    "max_index_ms": 317.869083,
+    "max_read_ms": 69.003041,
+    "pending_chunks": 21870,
+    "phase": "streaming",
+    "processed_chunks": 1852,
+    "recent_data_checked_at": "2026-09-10T17:42:18Z",
+    "scanned_samples": 151000,
+    "status": "running",
+    "timings": {
+      "acknowledge_chunk": {
+        "count": 1852,
+        "max_ms": 28.838167,
+        "mean_ms": 2.227757299136073,
+        "recent_p50_ms": 0.486,
+        "recent_p95_ms": 10.94025
+      },
+      "encrypt": {
+        "count": 1806,
+        "max_ms": 13.093167,
+        "mean_ms": 0.4240687652270212,
+        "recent_p50_ms": 0.1045,
+        "recent_p95_ms": 0.816
+      },
+      "prepare_chunk": {
+        "count": 1852,
+        "max_ms": 1300.946583,
+        "mean_ms": 178.5240258104752,
+        "recent_p50_ms": 6.931833,
+        "recent_p95_ms": 294.464375
+      },
+      "publish_catalog": {
+        "count": 81,
+        "max_ms": 2167.746459,
+        "mean_ms": 736.5145262469138,
+        "recent_p50_ms": 836.971334,
+        "recent_p95_ms": 1510.295958
+      },
+      "request_catalog": {
+        "count": 849,
+        "max_ms": 667.628167,
+        "mean_ms": 234.05879387161391,
+        "recent_p50_ms": 215.460333,
+        "recent_p95_ms": 326.942291
+      },
+      "request_delete": {
+        "count": 48,
+        "max_ms": 414.588333,
+        "mean_ms": 284.75159379166655,
+        "recent_p50_ms": 267.028417,
+        "recent_p95_ms": 372.852542
+      },
+      "request_other": {
+        "count": 65,
+        "max_ms": 694.485417,
+        "mean_ms": 250.47752303076922,
+        "recent_p50_ms": 235.307875,
+        "recent_p95_ms": 419.690083
+      },
+      "request_upload": {
+        "count": 1806,
+        "max_ms": 1180.971875,
+        "mean_ms": 571.8347648803987,
+        "recent_p50_ms": 536.388583,
+        "recent_p95_ms": 767.349041
+      },
+      "server_catalog_d1": {
+        "count": 849,
+        "max_ms": 618,
+        "mean_ms": 184.90341578327445,
+        "recent_p50_ms": 176,
+        "recent_p95_ms": 229
+      },
+      "server_catalog_r2": {
+        "count": 849,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_catalog_worker": {
+        "count": 849,
+        "max_ms": 618,
+        "mean_ms": 185.08833922261485,
+        "recent_p50_ms": 176,
+        "recent_p95_ms": 229
+      },
+      "server_delete_d1": {
+        "count": 48,
+        "max_ms": 356,
+        "mean_ms": 226.20833333333334,
+        "recent_p50_ms": 214,
+        "recent_p95_ms": 294
+      },
+      "server_delete_r2": {
+        "count": 48,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_delete_worker": {
+        "count": 48,
+        "max_ms": 356,
+        "mean_ms": 226.54166666666666,
+        "recent_p50_ms": 215,
+        "recent_p95_ms": 294
+      },
+      "server_other_d1": {
+        "count": 65,
+        "max_ms": 541,
+        "mean_ms": 184.06153846153848,
+        "recent_p50_ms": 170,
+        "recent_p95_ms": 318
+      },
+      "server_other_r2": {
+        "count": 65,
+        "max_ms": 0,
+        "mean_ms": 0,
+        "recent_p50_ms": 0,
+        "recent_p95_ms": 0
+      },
+      "server_other_worker": {
+        "count": 65,
+        "max_ms": 541,
+        "mean_ms": 184.06153846153848,
+        "recent_p50_ms": 170,
+        "recent_p95_ms": 318
+      },
+      "server_upload_d1": {
+        "count": 1806,
+        "max_ms": 638,
+        "mean_ms": 307.5891472868217,
+        "recent_p50_ms": 296,
+        "recent_p95_ms": 438
+      },
+      "server_upload_r2": {
+        "count": 1806,
+        "max_ms": 725,
+        "mean_ms": 173.6234772978959,
+        "recent_p50_ms": 154,
+        "recent_p95_ms": 244
+      },
+      "server_upload_worker": {
+        "count": 1806,
+        "max_ms": 1081,
+        "mean_ms": 481.82613510520486,
+        "recent_p50_ms": 456,
+        "recent_p95_ms": 632
+      },
+      "sign": {
+        "count": 2768,
+        "max_ms": 35.329167,
+        "mean_ms": 12.201088971459555,
+        "recent_p50_ms": 12.224917,
+        "recent_p95_ms": 26.02325
+      },
+      "upload_pacing": {
+        "count": 1854,
+        "max_ms": 718.810541,
+        "mean_ms": 36.68304213592234,
+        "recent_p50_ms": 0.002292,
+        "recent_p95_ms": 459.8055
+      }
+    },
+    "types_complete": 45,
+    "types_total": 53,
+    "updated_at": "2026-09-10T17:42:48Z",
+    "uploaded_bytes": 4735692
+  }
+}

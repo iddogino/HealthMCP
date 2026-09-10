@@ -116,3 +116,32 @@ test('dashboard counters track replacement and deletion without counting physica
   assert.deepEqual({...f.db.prepare('SELECT bytes,objects FROM cache_usage').get()},{bytes:Buffer.byteLength(envelope(2)),objects:1});
   await deleteSeries(f.env,f.user(),'workouts');assert.deepEqual({...f.db.prepare('SELECT bytes,objects FROM cache_usage').get()},{bytes:0,objects:0});
 });
+
+test('replacement acknowledgement does not wait for old-object GC, whose bytes remain reserved',async()=>{
+  const f=fixture(),gate=deferred(),entered=deferred(),background:Promise<unknown>[]=[];
+  await upload(request(),f.env,f.user(),envelope());
+  f.setBeforeDelete(async()=>{entered.resolve();await gate.promise;});
+  const response=await upload(request(),f.env,f.user(),envelope(2),{waitUntil:p=>background.push(p)});
+  await entered.promise;
+  assert.equal(response.status,200);assert.equal(stored(f),envelope(2));
+  assert.equal(f.objects.size,2);assert.equal(f.db.prepare("SELECT objects FROM quota_usage WHERE scope='global'").get()!.objects,2);
+  gate.resolve();await Promise.all(background);
+  assert.equal(f.objects.size,1);assert.equal(stored(f),envelope(2));
+  assert.equal(f.db.prepare("SELECT objects FROM quota_usage WHERE scope='global'").get()!.objects,1);
+});
+test('a failed background cleanup remains durable for the scheduled sweeper',async()=>{
+  const f=fixture(),background:Promise<unknown>[]=[];
+  await upload(request(),f.env,f.user(),envelope());f.failDeletes();
+  await upload(request(),f.env,f.user(),envelope(2),{waitUntil:p=>background.push(p)});await Promise.all(background);
+  assert.equal(f.objects.size,2);assert.equal(stored(f),envelope(2));
+  f.clearFaults();f.db.prepare('UPDATE storage_objects SET created_at=0').run();await collectGarbage(f.env);
+  assert.equal(f.objects.size,1);assert.equal(stored(f),envelope(2));
+});
+test('batched admission enforces both write limits before any object storage write',async()=>{
+  for(const setting of ['MAX_USER_WRITES_PER_MINUTE','MAX_GLOBAL_WRITES_PER_MINUTE'] as const) {
+    const f=fixture();f.env[setting]='1';
+    await upload(request(),f.env,f.user(),envelope());
+    await assert.rejects(upload(request('sleep','2026-09-01'),f.env,f.user(),envelope()),(error:any)=>error.status===429);
+    assert.equal(f.objects.size,1);assert.equal(count(f,'chunks'),1);
+  }
+});

@@ -28,6 +28,14 @@ export async function rateLimit(env: Env, key: string, limit: number, seconds: n
   const row = await env.DB.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(`${key}:${window}`,(window+1)*seconds).first<{count:number}>();
   if (!row || row.count > limit) throw new HttpError(429,'Too many requests; try again later',(window+1)*seconds-now());
 }
+export function rateLimitStatement(env:Env,key:string,seconds:number) {
+  const window=Math.floor(now()/seconds);
+  return env.DB.prepare('INSERT INTO rate_limits(key,count,expires_at) VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(`${key}:${window}`,(window+1)*seconds);
+}
+export function checkRateLimit(result:D1Result,limit:number,seconds:number) {
+  const count=(result.results?.[0] as {count?:number}|undefined)?.count;
+  if(typeof count!=='number' || count>limit) throw new HttpError(429,'Too many requests; try again later',(Math.floor(now()/seconds)+1)*seconds-now());
+}
 export async function verifySignature(request: Request, body: string, publicKey: string) {
   const timestamp=request.headers.get('x-timestamp')??'', nonce=request.headers.get('x-nonce')??'', signature=request.headers.get('x-signature')??'';
   if (!/^\d{10}$/.test(timestamp) || Math.abs(now()-Number(timestamp))>300 || !/^[A-Za-z0-9_-]{22,80}$/.test(nonce)) throw new HttpError(401,'Invalid or expired device signature');
@@ -51,9 +59,14 @@ export async function authenticateDevice(request: Request, env: Env, body: strin
   }
   if (!user) throw new HttpError(401,'Unknown device');
   const nonce=await verifySignature(request,body,user.device_pubkey);
-  await rateLimit(env,`device:${user.id}`,1200,60);
-  await rateLimit(env,'device:global',12000,60);
-  const claim=await env.DB.prepare('INSERT OR IGNORE INTO nonces(user_id,nonce,expires_at) VALUES(?,?,?)').bind(user.id,nonce,now()+600).run();
+  // One database round trip, with the same atomic counters and replay claim.
+  // Both budgets count signed attempts, including attempts rejected by a limit.
+  const [deviceLimit,globalLimit,claim]=await env.DB.batch([
+    rateLimitStatement(env,`device:${user.id}`,60),
+    rateLimitStatement(env,'device:global',60),
+    env.DB.prepare('INSERT OR IGNORE INTO nonces(user_id,nonce,expires_at) VALUES(?,?,?)').bind(user.id,nonce,now()+600)
+  ]);
+  checkRateLimit(deviceLimit,1200,60);checkRateLimit(globalLimit,12000,60);
   if (claim.meta.changes!==1) throw new HttpError(409,'Request already used');
   if (user.state!=='active' && !['/v1/cache/reset','/v1/account'].includes(new URL(request.url).pathname)) throw new HttpError(409,'Cache reset in progress');
   const generation=url.searchParams.get('cache_generation'),revision=url.searchParams.get('privacy_revision');

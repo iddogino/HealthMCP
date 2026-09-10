@@ -5,9 +5,10 @@ import {blob,resetCache,updateSeries,upload,deleteSeries,updateCoverage} from '.
 import {admitDevice} from './limits';
 import {scheduled} from './push';
 import {handleMcp} from './mcp';
+import {measureBindings} from './timing';
 import {type Env,type User,type AuthProps,HttpError,json,now} from './types';
 
-async function api(request:Request,env:Env):Promise<Response> {
+async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Response> {
   const url=new URL(request.url),path=url.pathname;
   if(path==='/health' && request.method==='GET') {
     await env.DB.prepare('SELECT 1').first();
@@ -30,7 +31,7 @@ async function api(request:Request,env:Env):Promise<Response> {
     return json(user,201);
   }
   const user=await authenticateDevice(request,env,body);
-  if(path==='/v1/upload' && ['PUT','DELETE'].includes(request.method)) return upload(request,env,user,body);
+  if(path==='/v1/upload' && ['PUT','DELETE'].includes(request.method)) return upload(request,env,user,body,ctx);
   if(path==='/v1/chunk-coverage' && request.method==='PUT') return updateCoverage(env,user,body);
   if(path==='/v1/series' && request.method==='PUT') return updateSeries(env,user,body);
   if(path==='/v1/series' && request.method==='DELETE') return deleteSeries(env,user,url.searchParams.get('series')??'');
@@ -69,6 +70,9 @@ const provider=(env:Env)=>new OAuthProvider<Env>({
 });
 export default {
   async fetch(request:Request,env:Env,ctx:ExecutionContext) {
+    const start=performance.now();
+    const timing=request.headers.get('x-sync-metrics')==='1' && new URL(request.url).pathname.startsWith('/v1/')?measureBindings(env):undefined;
+    if(timing) env=timing.env;
     let response:Response;
     try {
       const url=new URL(request.url);
@@ -92,6 +96,7 @@ export default {
       if(!(error instanceof HttpError)) console.error('request_failed',env.PUBLIC_ORIGIN.startsWith('http://localhost')?String(error):error instanceof Error?error.name:'unknown');
     }
     const headers=new Headers(response.headers);
+    if(timing) headers.set('Server-Timing',`worker;dur=${(performance.now()-start).toFixed(2)}, ${timing.header()}`);
     headers.set('X-Content-Type-Options','nosniff');headers.set('Referrer-Policy','no-referrer');headers.set('Strict-Transport-Security','max-age=31536000; includeSubDomains');
     if(!new URL(request.url).pathname.startsWith('/authorize')) {
       headers.set('Access-Control-Allow-Origin','*');headers.set('Access-Control-Allow-Methods','GET,POST,PUT,DELETE,OPTIONS');

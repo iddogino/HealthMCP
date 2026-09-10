@@ -9,7 +9,7 @@ enum SyncDiagnostics {
             try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]).write(to: directory.appendingPathComponent(name), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch { /* Diagnostics must never interrupt sync. */ }
     }
-    static func progress(_ run: SyncRun) {
+    static func progress(_ run: SyncRun, timings: [String: [String: Double]] = [:]) {
         #if !DEBUG
         // Developer-launch opt-in only. No health values or credentials are
         // included, and this local file is never uploaded or backed up.
@@ -21,6 +21,7 @@ enum SyncDiagnostics {
             values["recent_data_checked_at"] = HealthDates.timestamp(availability.refreshedAt)
             values["history_complete"] = availability.historyComplete
         }
+        if !timings.isEmpty { values["timings"] = timings }
         write(values, name: "progress.json")
     }
 }

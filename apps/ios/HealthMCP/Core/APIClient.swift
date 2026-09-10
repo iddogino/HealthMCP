@@ -15,11 +15,18 @@ struct APIClient: Sendable {
     let session: URLSession
     var cacheGeneration: Int?
     var privacyRevision: Int?
+    var uploadPacer: UploadRequestPacer?
     init(identity: DeviceIdentity, userID: String = "", baseURL: URL = production, session: URLSession = .shared) { self.identity = identity; self.userID = userID; self.baseURL = baseURL; self.session = session }
     func request(_ method: String, _ path: String, body: Data? = nil) async throws -> Data {
         let path = path + (cacheGeneration.map { (path.contains("?") ? "&" : "?") + "cache_generation=\($0)&privacy_revision=\(privacyRevision ?? 0)" } ?? "")
         guard let url = URL(string: path, relativeTo: baseURL), url.host == baseURL.host else { throw HealthMCPError.message("Invalid server address.") }
+        if url.path == "/v1/upload", let uploadPacer {
+            let start = ContinuousClock.now
+            try await uploadPacer.wait()
+            if SyncPerformance.enabled { await SyncPerformance.shared.record("upload_pacing", since: start) }
+        }
         let timestamp = String(Int(Date().timeIntervalSince1970)), nonce = UUID().uuidString
+        let signingStart = ContinuousClock.now
         let digest = SHA256.hash(data: body ?? Data()).map { String(format: "%02x", $0) }.joined()
         let canonical = [method, path, timestamp, nonce, digest].joined(separator: "\n")
         var request = URLRequest(url: url, timeoutInterval: 90)
@@ -29,8 +36,23 @@ struct APIClient: Sendable {
         request.setValue(timestamp, forHTTPHeaderField: "X-Timestamp")
         request.setValue(nonce, forHTTPHeaderField: "X-Nonce")
         request.setValue(try identity.signature(for: Data(canonical.utf8)).base64EncodedString(), forHTTPHeaderField: "X-Signature")
+        if SyncPerformance.enabled {
+            request.setValue("1", forHTTPHeaderField: "X-Sync-Metrics")
+            await SyncPerformance.shared.record("sign", since: signingStart)
+        }
+        let requestStart = ContinuousClock.now
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw HealthMCPError.message("The sync service did not respond.") }
+        if SyncPerformance.enabled {
+            let category = url.path == "/v1/upload" ? (method == "DELETE" ? "delete" : "upload") : url.path == "/v1/series" ? "catalog" : "other"
+            await SyncPerformance.shared.record("request_\(category)", since: requestStart)
+            for field in (http.value(forHTTPHeaderField: "Server-Timing") ?? "").split(separator: ",") {
+                let parts = field.trimmingCharacters(in: .whitespaces).components(separatedBy: ";dur=")
+                if parts.count == 2, ["worker", "d1", "r2"].contains(parts[0]), let value = Double(parts[1]) {
+                    await SyncPerformance.shared.record("server_\(category)_\(parts[0])", milliseconds: value)
+                }
+            }
+        }
         guard (200..<300).contains(http.statusCode) else {
             let error = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             throw APIError(status: http.statusCode, message: error?["error"] as? String ?? "Sync service returned \(http.statusCode). Please try again.", retryAfter: http.value(forHTTPHeaderField: "Retry-After").flatMap(Double.init))
@@ -41,6 +63,7 @@ struct APIClient: Sendable {
         let status = try await json("GET", "/v1/status")
         guard let generation = status["cache_generation"] as? Int, let revision = status["privacy_revision"] as? Int else { throw HealthMCPError.message("The sync service is being updated. Please retry shortly.") }
         var client = self; client.cacheGeneration = generation; client.privacyRevision = revision
+        client.uploadPacer = UploadRequestPacer()
         return client
     }
     func json(_ method: String, _ path: String, _ value: [String: Any]? = nil) async throws -> [String: Any] {
@@ -53,8 +76,10 @@ struct APIClient: Sendable {
     }
     func upload(series: String, period: String, plaintext: Data, key: String, coverage: ChunkCoverage?) async throws -> Int {
         let path = objectPath(series: series, period: period)
+        let encryptionStart = ContinuousClock.now
         let envelope = try await Task.detached(priority: .utility) { try HealthCrypto.encrypt(plaintext, key: key, path: path) }.value
         let data = try JSONEncoder().encode(envelope)
+        if SyncPerformance.enabled { await SyncPerformance.shared.record("encrypt", since: encryptionStart) }
         guard data.count <= 16 * 1024 * 1024 else { throw HealthMCPError.message("The \(series) chunk is larger than 16 MB. Disable route detail and try again.") }
         _ = try await request("PUT", uploadPath(series: series, period: period) + (coverage.map { "&first_day=\($0.first)&last_day=\($0.last)" } ?? ""), body: data)
         return data.count

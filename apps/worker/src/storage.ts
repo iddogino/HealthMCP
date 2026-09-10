@@ -1,5 +1,5 @@
 import {objectPath, SERIES, validDay, validateEnvelope, validatePeriod} from '../../../packages/protocol/index';
-import {b64url, bytes, hmac, unbase64, verifyHmac, parseJSON, rateLimit} from './security';
+import {b64url, bytes, hmac, unbase64, verifyHmac, parseJSON, rateLimit, rateLimitStatement, checkRateLimit} from './security';
 import {storageLimits,limit} from './limits';
 import {type AuthProps, type Env, type User, HttpError, json, now} from './types';
 export const physicalKey = (user:User, path:string) => `${user.id}/g${user.cache_generation}/${path.slice(user.id.length+1)}.enc`;
@@ -41,14 +41,20 @@ export async function collectGarbage(env:Env) {
     try { await discardObject(env,row.blob_key,true); } catch { /* Keep quota reserved and retry next minute. */ }
   }
 }
-export async function upload(request:Request,env:Env,user:User,body:string) {
+export async function upload(request:Request,env:Env,user:User,body:string,ctx?:Pick<ExecutionContext,'waitUntil'>) {
   const url=new URL(request.url), series=url.searchParams.get('series')??'', period=url.searchParams.get('period')??'';
   if (!validatePeriod(series,period)) throw new HttpError(400,'Unknown series or invalid period');
-  await rateLimit(env,`writes:${user.id}`,limit(env,'MAX_USER_WRITES_PER_MINUTE',600),60);
-  await rateLimit(env,'writes:global',limit(env,'MAX_GLOBAL_WRITES_PER_MINUTE',6000),60);
-  await assertCache(env,user);
   const path=objectPath(user.id,series,period), logical=path+'.enc';
-  const previous=await env.DB.prepare('SELECT * FROM chunks WHERE user_id=? AND object_key=? AND generation=?').bind(user.id,logical,user.cache_generation).first<Chunk>();
+  const [userLimit,globalLimit,cache,existing]=await env.DB.batch([
+    rateLimitStatement(env,`writes:${user.id}`,60),
+    rateLimitStatement(env,'writes:global',60),
+    unchangedCache(env,user),
+    env.DB.prepare('SELECT * FROM chunks WHERE user_id=? AND object_key=? AND generation=?').bind(user.id,logical,user.cache_generation)
+  ]);
+  checkRateLimit(userLimit,limit(env,'MAX_USER_WRITES_PER_MINUTE',600),60);
+  checkRateLimit(globalLimit,limit(env,'MAX_GLOBAL_WRITES_PER_MINUTE',6000),60);
+  if(!cache.results.length) throw new HttpError(409,'Privacy settings changed; restart sync');
+  const previous=existing.results[0] as Chunk|undefined;
   if (request.method==='DELETE') {
     if(previous) {
       await env.DB.prepare(`DELETE FROM chunks WHERE user_id=? AND object_key=? AND blob_key=? AND EXISTS
@@ -83,7 +89,9 @@ export async function upload(request:Request,env:Env,user:User,body:string) {
         AND EXISTS(SELECT 1 FROM storage_objects WHERE blob_key=? AND state='pending')
         AND COALESCE((SELECT blob_key FROM chunks WHERE user_id=? AND object_key=?),'')=?
         ON CONFLICT(user_id,object_key) DO UPDATE SET bytes=excluded.bytes,updated_at=excluded.updated_at,blob_key=excluded.blob_key,generation=excluded.generation,first_day=excluded.first_day,last_day=excluded.last_day`).bind(series,period,logical,size,now(),key,user.cache_generation,first,last,user.id,user.cache_generation,user.privacy_revision,key,user.id,logical,previous?.blob_key??''),
-      env.DB.prepare("UPDATE storage_objects SET state='committed' WHERE blob_key=? AND EXISTS(SELECT 1 FROM chunks WHERE blob_key=?)").bind(key,key)
+      env.DB.prepare("UPDATE storage_objects SET state='committed' WHERE blob_key=? AND EXISTS(SELECT 1 FROM chunks WHERE blob_key=?)").bind(key,key),
+      env.DB.prepare(`UPDATE users SET last_upload_at=?,pending_sync_at=CASE WHEN ? THEN NULL ELSE pending_sync_at END
+        WHERE id=? AND cache_generation=? AND privacy_revision=? AND EXISTS(SELECT 1 FROM chunks WHERE blob_key=?)`).bind(now(),series!=='check' && series!=='profile'?1:0,user.id,user.cache_generation,user.privacy_revision,key)
     ]);
     if(published[0].meta.changes<1) throw new HttpError(409,'Cache changed; retry sync');
   } catch(error) {
@@ -91,8 +99,13 @@ export async function upload(request:Request,env:Env,user:User,body:string) {
     try { await discardObject(env,key); } catch { /* Sweeper owns the durable reservation. */ }
     throw error;
   }
-  if(previous) { try { await discardObject(env,previous.blob_key,true); } catch { /* Retry GC later. */ } }
-  await env.DB.prepare('UPDATE users SET last_upload_at=?,pending_sync_at=CASE WHEN ? THEN NULL ELSE pending_sync_at END WHERE id=? AND cache_generation=? AND privacy_revision=?').bind(now(),series!=='check' && series!=='profile'?1:0,user.id,user.cache_generation,user.privacy_revision).run();
+  if(previous) {
+    // Publication is already durable. Keep the old physical version reserved
+    // against quota until GC finishes; the scheduled sweeper also owns it if
+    // this background task fails or the Worker stops.
+    const cleanup=discardObject(env,previous.blob_key,true).catch(()=>{});
+    if(ctx) ctx.waitUntil(cleanup);else await cleanup;
+  }
   return json({stored:true,path,bytes:size});
 }
 export async function deleteSeries(env:Env,user:User,series:string) {
