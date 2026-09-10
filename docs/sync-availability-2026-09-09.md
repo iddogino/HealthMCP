@@ -14,13 +14,13 @@ Validation:
 - 17 availability and range-card UI tests passed on iPhone 17 Pro / iOS 26.3.1.
 - New cases cover UTC September 10 at 01:22 displaying September 9 in California, historical end-day conversion, UTC+9 and UTC+14, half-hour offsets, daylight-saving changes, New Year's, offline aging, legacy decoding, and unchanged UTC storage boundaries.
 - Both the approximate range and the exact local “since” label were visually inspected. Images: `artifacts/sync-availability/local-range-iphonese.png` and `local-since-iphone17pro.png`.
-- Release archive and App Store/ad hoc exports succeeded for **1.0.0 (13)**. The ad hoc signature, phone provisioning, production APNs entitlement, and HealthKit entitlement were verified. Direct installation is pending the iPhone reconnecting; build 12 remains the last verified physical install.
+- Release archive and App Store/ad hoc exports succeeded for **1.0.0 (13)**. The ad hoc signature, phone provisioning, production APNs entitlement, and HealthKit entitlement were verified. After the iPhone reconnected, build 13 was installed on the physical iPhone 17 Pro and launched successfully. The installed version was read back as **1.0.0 (13)**. Evidence: `artifacts/HealthMCP-13-device-install.json`, `HealthMCP-13-device-launch.json`, and `HealthMCP-13-device-after.json`.
 
 SE result: `~/Library/Developer/XcodeBuildMCP/workspaces/HealthMCP-990b23d666ee/result-bundles/test_sim_2026-09-10T01-53-48-186Z_pid81566_19d2fcab.xcresult`.
 Pro result: `~/Library/Developer/XcodeBuildMCP/workspaces/HealthMCP-990b23d666ee/result-bundles/test_sim_2026-09-10T01-55-35-708Z_pid81566_94bb65a3.xcresult`.
 App Store IPA SHA-256: `5f6b2046423105a8fdd03ebe98e50be9f9200bd0dcac64bbb90fe352f91f3a7d`.
 
-Build 13 (`83c7d5c4-0145-4d2b-addf-9ae37a315691`) is **VALID** and **IN_BETA_TESTING**, with explicit membership in **Health MCP Internal** and no other groups. Test notes were added, and the prepared App Store version is attached to this build. It has not been publicly submitted or released. The iPhone remained unavailable for a direct installation; the reconnect request is pending.
+Build 13 (`83c7d5c4-0145-4d2b-addf-9ae37a315691`) is **VALID** and **IN_BETA_TESTING**, with explicit membership in **Health MCP Internal** and no other groups. Test notes were added, and the prepared App Store version is attached to this build. It has not been publicly submitted or released. Direct installation and launch succeeded after the iPhone reconnected on September 9 at 7:26 PM PDT.
 
 Xcode initially failed export because its saved Apple account session was unavailable. Export recovered using the existing API key with `-authenticationKeyPath`, `-authenticationKeyID`, and `-authenticationKeyIssuerID`, alongside `-allowProvisioningUpdates`, following [Apple's documented cloud-signing flow](https://developer.apple.com/videos/play/wwdc2021/10204/). No signing certificates were revoked or new account login requested.
 
