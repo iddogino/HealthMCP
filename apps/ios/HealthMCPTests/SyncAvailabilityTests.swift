@@ -39,6 +39,65 @@ final class SyncAvailabilityTests: XCTestCase {
         XCTAssertEqual(HealthDates.day(BackfillPlan.recentStart(now: try date("2026-09-02"))), "2026-08-27")
     }
 
+    func testUpgradeShowsExistingUploadsBeforeCoverageMigrationOrRecentScan() async throws {
+        let (store, url) = try await database()
+        // An existing installation with thousands of acknowledged uploads,
+        // but no range checkpoint from the new verification feature.
+        try await store.execute("""
+            WITH RECURSIVE days(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM days WHERE n<7185)
+            INSERT INTO uploaded SELECT 'steps',date('2006-01-01','+'||n||' days'),1,date('2006-01-01','+'||n||' days'),date('2006-01-01','+'||n||' days') FROM days
+            """)
+        try await store.execute("DELETE FROM sync_metadata WHERE key='chunk-coverage-v1'")
+        let reopened = try await SyncStore.open(url: url)
+        let pending = try await reopened.pendingCoverageCount()
+        XCTAssertEqual(pending, 7186)
+        let range = try await reopened.publishedRange(for: [steps])
+        XCTAssertEqual(range?.first, try date("2006-01-01"))
+        XCTAssertEqual(range?.last, try date("2006-01-01") + 7185 * 86400)
+        XCTAssertNil(range?.updatedAt, "Legacy timestamps must not be invented from app launch time")
+        let completeRange = try await reopened.availability(for: [steps])
+        XCTAssertNil(completeRange, "A published span does not prove complete coverage")
+        try await reopened.resetIndex()
+        let reset = try await reopened.publishedRange(for: [steps]); XCTAssertNil(reset)
+    }
+
+    func testPublishedCatalogRangeFiltersPrivateEmptyAndDisabledSeriesAndPersistsOffline() async throws {
+        let (store, url) = try await database()
+        let range = PublishedDataRange.fromCatalog([
+            ["series": "steps", "total_samples": 10, "first_day": "2026-09-01", "last_day": "2026-09-09", "last_synced_at": now.timeIntervalSince1970 - 240],
+            ["series": "profile", "total_samples": 1, "first_day": "2001-01-01", "last_day": "2030-01-01", "last_synced_at": now.timeIntervalSince1970],
+            ["series": "body_mass", "total_samples": 1, "first_day": "2000-01-01", "last_day": "2031-01-01", "last_synced_at": now.timeIntervalSince1970],
+            ["series": "daily_summary", "total_samples": 30, "first_day": "2000-01-01", "last_day": "2031-01-01", "last_synced_at": now.timeIntervalSince1970],
+            ["series": "steps", "total_samples": 0, "first_day": "1999-01-01", "last_day": "2032-01-01"],
+            ["series": "steps", "total_samples": 1, "first_day": "", "last_day": ""]
+        ], definitions: [steps])
+        XCTAssertEqual(range?.first, try date("2026-09-01")); XCTAssertEqual(range?.last, try date("2026-09-09"))
+        XCTAssertEqual(range?.updatedAt, now - 240)
+        XCTAssertNil(PublishedDataRange.fromCatalog([["series": "daily_summary", "total_samples": 30, "first_day": "2026-09-01", "last_day": "2026-09-30"]], definitions: [steps]))
+        try await store.cachePublishedRange(range, definitions: [steps])
+        let reopened = try await SyncStore.open(url: url)
+        let cached = try await reopened.publishedRange(for: [steps]); XCTAssertEqual(cached, range)
+        let disabled = try await reopened.publishedRange(for: [mass]); XCTAssertNil(disabled)
+        // Server-confirmed emptiness takes precedence over stale local rows.
+        try await store.recordUpload(DirtyChunk(series: "steps", period: "2020-01-01"), count: 1, first: "2020-01-01", last: "2020-01-01")
+        try await store.cachePublishedRange(nil, definitions: [steps])
+        let empty = try await reopened.publishedRange(for: [steps]); XCTAssertNil(empty)
+    }
+
+    func testRecentDataIsPublishedBeforeLegacyCoverageAndSurvivesMigrationFailure() async throws {
+        let (store, _) = try await database()
+        let old = DirtyChunk(series: "workouts", period: "2020-01-01/" + UUID().uuidString.lowercased())
+        try await store.recordUpload(old, count: 1, first: "2020-01-01", last: "2020-01-01")
+        try await store.execute("INSERT INTO coverage_pending VALUES(?,?)", [old.series, old.period])
+        let uploader = AvailabilityUploader(failCoverage: true, store: store)
+        let result = await SyncEngine(store: store, reader: AvailabilityReader(store: store), client: uploader, key: "synthetic", run: SyncRun(trigger: "App opened")) { _ in }.sync(definitions: [workouts], now: now)
+        let ready = await uploader.readyBeforeCoverage
+        XCTAssertTrue(ready, "Recent data must become usable before upgrading historical metadata")
+        XCTAssertEqual(result.status, "failed")
+        XCTAssertNotNil(result.availability, "A metadata failure cannot hide already confirmed recent data")
+        let pending = try await store.pendingCoverageCount(); XCTAssertEqual(pending, 1, "Retry migration on the next run")
+    }
+
     func testRangeNeedsEveryPeriodRecordScanAndCatalogAcknowledgement() async throws {
         let (store, _) = try await database(), definitions = [steps, mass, workouts]
         // An old upload alone must never be interpreted as a complete range.
@@ -185,10 +244,18 @@ private actor AvailabilityReader: HealthSyncReading {
 }
 private actor AvailabilityUploader: SyncUploading {
     let failCatalog: Bool
+    let failCoverage: Bool
+    let store: SyncStore?
+    var readyBeforeCoverage = false
     var workoutUploads = Set<String>()
-    init(failCatalog: Bool = false) { self.failCatalog = failCatalog }
+    init(failCatalog: Bool = false, failCoverage: Bool = false, store: SyncStore? = nil) { self.failCatalog = failCatalog; self.failCoverage = failCoverage; self.store = store }
     func upload(series: String, period: String, plaintext: Data, key: String) -> Int { if series == "workouts" { workoutUploads.insert(period) }; return plaintext.count }
     func delete(series: String, period: String) {}
     func updateCatalog(_ summary: UploadedSummary) throws { if failCatalog { throw HealthMCPError.message("Synthetic catalog failure") } }
+    func updateCoverage(_ coverage: [ChunkCoverage]) async throws -> [DirtyChunk] {
+        readyBeforeCoverage = try await store?.availability(for: SeriesDefinition.all.filter { $0.id == "workouts" }) != nil
+        if failCoverage { throw HealthMCPError.message("Synthetic coverage failure") }
+        return []
+    }
     func completeSync() {}
 }

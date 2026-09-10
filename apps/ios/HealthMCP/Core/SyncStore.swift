@@ -251,6 +251,9 @@ actor SyncStore {
             return ChunkCoverage(series: series, period: period, first: first, last: last)
         }
     }
+    func pendingCoverageCount() throws -> Int {
+        try rows("SELECT COUNT(*) AS count FROM coverage_pending p JOIN uploaded u ON u.series=p.series AND u.period=p.period").first?["count"] as? Int ?? 0
+    }
     func acknowledgeCoverage(_ coverage: [ChunkCoverage], missing: [DirtyChunk] = []) throws {
         try transaction {
             for chunk in missing { try markDirty(chunk.series, chunk.period, priority: 50) }

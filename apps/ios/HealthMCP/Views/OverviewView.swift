@@ -11,6 +11,8 @@ struct OverviewView: View {
                     VStack(alignment: .leading, spacing: 8) { Eyebrow(text: "Your private health bridge"); Text("Connect your agents to Apple Health").font(.system(size: 36, weight: .semibold, design: .rounded)).tracking(-1) }.padding(.top, 12)
                     if let availability = model.syncAvailability, availability.hasSamples {
                         SyncAvailabilityCard(availability: availability, isSyncing: model.isSyncing, hasConnections: !model.connections.isEmpty) { model.selectedTab = 1 }
+                    } else if let range = model.publishedDataRange {
+                        PublishedDataRangeCard(range: range, hasConnections: !model.connections.isEmpty) { model.selectedTab = 1 }
                     } else if model.isSyncing {
                         VStack(alignment: .leading, spacing: 8) {
                             Label("Recent data comes first", systemImage: "clock.arrow.circlepath").font(.headline).foregroundStyle(Brand.accent)
@@ -52,6 +54,41 @@ struct OverviewView: View {
         VStack(alignment: .leading, spacing: 10) { Image(systemName: icon).foregroundStyle(Brand.accent); Text(title).font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Brand.secondary); Text(value).font(.title2.weight(.semibold)).minimumScaleFactor(0.75).lineLimit(1); Text(detail).font(.caption).foregroundStyle(Brand.secondary) }.padding(18).frame(maxWidth: .infinity, alignment: .leading).background(Brand.surface, in: RoundedRectangle(cornerRadius: 24))
     }
 }
+struct PublishedDataRangeCard: View {
+    let range: PublishedDataRange
+    let hasConnections: Bool
+    let openAgents: () -> Void
+
+    var body: some View {
+        Panel {
+            VStack(alignment: .leading, spacing: 16) {
+                Label("Data available to your agents", systemImage: "checkmark.circle.fill")
+                    .font(.headline).foregroundStyle(Brand.accent).accessibilityIdentifier("published-range-ready")
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Uploaded data range").font(.subheadline).foregroundStyle(Brand.secondary)
+                    Text(range.rangeLabel).font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("published-range-dates")
+                }
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    ViewThatFits(in: .horizontal) {
+                        HStack { Text("Last updated").foregroundStyle(Brand.secondary); Spacer(); updateAge(at: context.date) }
+                        VStack(alignment: .leading, spacing: 4) { Text("Last updated").foregroundStyle(Brand.secondary); updateAge(at: context.date) }
+                    }.font(.subheadline).accessibilityElement(children: .combine).accessibilityIdentifier("published-range-freshness")
+                }
+                Text("Start using your agent now. Some dates and data types are still syncing.")
+                    .font(.subheadline).foregroundStyle(Brand.secondary).fixedSize(horizontal: false, vertical: true)
+                Button(action: openAgents) {
+                    HStack { Text(hasConnections ? "Open agents" : "Connect an agent"); Spacer(); Image(systemName: "arrow.up.right") }
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Brand.accent).padding(.vertical, 4).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityIdentifier("availability-agents")
+            }
+        }.overlay(RoundedRectangle(cornerRadius: 26).stroke(Brand.accent.opacity(0.25), lineWidth: 1))
+    }
+    private func updateAge(at now: Date) -> some View {
+        Text(range.updatedAt.map { SyncAvailability.relativeAge(since: $0, at: now) } ?? "Not recorded")
+            .foregroundStyle(Brand.accent)
+    }
+}
 struct SyncAvailabilityCard: View {
     let availability: SyncAvailability
     let isSyncing: Bool
@@ -88,7 +125,7 @@ struct SyncProgressCard: View {
     var body: some View {
         Panel {
             VStack(alignment: .leading, spacing: 18) {
-                HStack { Label(run.phase == "recent" ? "Syncing recent data" : run.availability?.historyComplete == false ? "Adding older history" : run.trigger == "Initial backfill" ? "First backfill" : "Sync in progress", systemImage: "arrow.triangle.2.circlepath").font(.headline).foregroundStyle(Brand.accent); Spacer(); if run.phase == "streaming" || run.phase == "recent" { ProgressView().tint(Brand.accent) } else { Text("\(Int(run.progress * 100))%").font(.title2.monospacedDigit().weight(.semibold)) } }
+                HStack { Label(run.phase == "coverage" ? "Updating data ranges" : run.phase == "recent" ? "Syncing recent data" : run.availability?.historyComplete == false ? "Adding older history" : run.trigger == "Initial backfill" ? "First backfill" : "Sync in progress", systemImage: "arrow.triangle.2.circlepath").font(.headline).foregroundStyle(Brand.accent); Spacer(); if run.phase == "streaming" || run.phase == "recent" { ProgressView().tint(Brand.accent) } else { Text("\(Int(run.progress * 100))%").font(.title2.monospacedDigit().weight(.semibold)) } }
                 ProgressView(value: run.progress).tint(Brand.accent).scaleEffect(x: 1, y: 1.6).accessibilityLabel("Sync progress").accessibilityValue("\(Int(run.progress * 100)) percent")
                 Text(run.stage).font(.subheadline).foregroundStyle(Brand.secondary)
                     .lineLimit(2, reservesSpace: true).truncationMode(.tail)

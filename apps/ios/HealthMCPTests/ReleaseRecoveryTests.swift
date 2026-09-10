@@ -58,6 +58,43 @@ private final class RecoveryURLProtocol: URLProtocol, @unchecked Sendable {
         XCTAssertTrue(app.initialized); XCTAssertFalse(app.onboarded); XCTAssertEqual(app.onboardingStep, 0)
         XCTAssertEqual(app.api?.userID, ""); XCTAssertFalse(defaults.bool(forKey: "onboarded"))
     }
+    func testStatusShowsExistingRangeWithoutNewScanAndRestoresItOffline() async throws {
+        try registered(); let app = model(); await app.bootstrap()
+        RecoveryURLProtocol.handler = { request in
+            request.respond(body: """
+                {"usage":{"bytes":15600000,"chunks":7186},"series":[{"series":"steps","first_day":"2024-01-01","last_day":"2026-09-09","total_samples":24000,"last_synced_at":1788954960}]}
+                """)
+        }
+        await app.refreshStatus(includeConnections: false)
+        XCTAssertNil(app.syncAvailability, "No new scan has run")
+        XCTAssertEqual(app.cloudChunks, 7186)
+        XCTAssertEqual(app.publishedDataRange?.first, try HealthDates.bounds("2024-01-01").0)
+        XCTAssertEqual(app.publishedDataRange?.last, try HealthDates.bounds("2026-09-09").0)
+        XCTAssertEqual(app.publishedDataRange?.updatedAt, Date(timeIntervalSince1970: 1788954960))
+        RecoveryURLProtocol.handler = { $0.respond(503) }
+        let reopened = model(); await reopened.bootstrap()
+        XCTAssertEqual(reopened.publishedDataRange, app.publishedDataRange)
+    }
+    func testDelayedStatusCannotRestoreOldRangeAfterKeyRotation() async throws {
+        try registered(); let app = model(); await app.bootstrap()
+        let entered = expectation(description: "Status request started")
+        var held: RecoveryURLProtocol?
+        RecoveryURLProtocol.handler = { request in
+            if request.request.url?.path == "/v1/status" { held = request; entered.fulfill() }
+            else { request.respond() }
+        }
+        let status = Task { await app.refreshStatus(includeConnections: false) }
+        await fulfillment(of: [entered], timeout: 2)
+        await app.rotateKey()
+        XCTAssertNil(app.pendingPrivacy)
+        held?.respond(body: """
+            {"series":[{"series":"steps","first_day":"2024-01-01","last_day":"2026-09-09","total_samples":24000,"last_synced_at":1788954960}]}
+            """)
+        await status.value
+        XCTAssertNil(app.publishedDataRange)
+        let reopened = model(); await reopened.bootstrap()
+        XCTAssertNil(reopened.publishedDataRange)
+    }
     func testFailedBootstrapRetriesAndConcurrentCallersWaitForReady() async throws {
         secrets.locked = true
         let app = model(); await app.bootstrap()

@@ -73,10 +73,9 @@ actor SyncEngine {
         do {
             run.availability = try await store.availability(for: definitions)
             try Task.checkCancellation()
-            try await publish(force: true)
             run.stage = "Preparing recent data"
+            try await publish(force: true)
             _ = try await client.upload(series: "check", period: "single", plaintext: Data("\"ok\"".utf8), key: key)
-            try await flushCoverage()
             let recentScan = try await store.beginRecentScan(definitions: definitions, now: now)
             if recentScan == nil { try await store.seedRecent(BackfillPlan.recentChunks(definitions: definitions, now: now), day: HealthDates.day(now)) }
             try await store.markDirty("daily_summary", HealthDates.month(now), priority: 200)
@@ -109,6 +108,9 @@ actor SyncEngine {
                 run.phase = "streaming"
                 try await publish(force: true)
             }
+            // An upgrade's historical metadata must not hold up recent data.
+            // Legacy blobs remain queryable while their exact bounds update.
+            try await flushCoverage()
             _ = try await drainBatch(definitions: definitions)
             try await flushCatalog(force: true)
             while !queue.isEmpty {
@@ -215,12 +217,22 @@ actor SyncEngine {
         return true
     }
     private func flushCoverage() async throws {
+        let total = try await store.pendingCoverageCount()
+        guard total > 0 else { return }
+        let previousPhase = run.phase, previousProgress = run.progress
+        defer { run.phase = previousPhase; run.progress = previousProgress }
+        run.phase = "coverage"
+        var completed = 0
         while true {
             try Task.checkCancellation()
+            run.stage = "Updating saved date ranges · \(completed.formatted()) of \(total.formatted())"
+            run.progress = Double(completed) / Double(total)
+            try await publish(force: true)
             let batch = try await store.pendingCoverage()
             guard !batch.isEmpty else { return }
             let missing = try await client.updateCoverage(batch)
             try await store.acknowledgeCoverage(batch, missing: missing)
+            completed += batch.count
         }
     }
     private func flushCatalog(force: Bool = false) async throws {

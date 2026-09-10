@@ -21,7 +21,11 @@ struct SyncAvailability: Codable, Equatable, Sendable {
     }
 
     func freshnessLabel(at now: Date) -> String {
-        let minutes = max(0, Int(now.timeIntervalSince(refreshedAt) / 60))
+        Self.relativeAge(since: refreshedAt, at: now)
+    }
+
+    static func relativeAge(since date: Date, at now: Date) -> String {
+        let minutes = max(0, Int(now.timeIntervalSince(date) / 60))
         if minutes < 1 { return "Just now" }
         if minutes < 60 { return "\(minutes) \(minutes == 1 ? "min" : "mins") ago" }
         let hours = minutes / 60
@@ -29,6 +33,43 @@ struct SyncAvailability: Codable, Equatable, Sendable {
         let days = hours / 24
         return "\(days) \(days == 1 ? "day" : "days") ago"
     }
+}
+
+/// The span of published samples is useful even before a complete window has
+/// been verified. It does not imply every date or data type is present.
+struct PublishedDataRange: Codable, Equatable, Sendable {
+    let first: Date
+    let last: Date
+    let updatedAt: Date?
+    let scope: String
+
+    var rangeLabel: String {
+        let format = Date.FormatStyle(date: .abbreviated, time: .omitted, calendar: HealthDates.calendar, timeZone: HealthDates.calendar.timeZone)
+        return first == last ? first.formatted(format) : "\(first.formatted(format)) – \(last.formatted(format))"
+    }
+
+    static func fromCatalog(_ rows: [[String: Any]], definitions: [SeriesDefinition]) -> Self? {
+        // Generated summaries can contain empty calendar days. Only actual
+        // shared sample series establish the span of health data.
+        let allowed = Set(definitions.map(\.id)).subtracting(["profile", "check", "daily_summary", "activity_rings"])
+        let values = rows.compactMap { row -> (Date, Date, Date?)? in
+            guard let series = row["series"] as? String, allowed.contains(series),
+                  (row["total_samples"] as? Int ?? 0) > 0,
+                  let firstDay = row["first_day"] as? String, let lastDay = row["last_day"] as? String,
+                  firstDay.count == 10, lastDay.count == 10,
+                  let first = try? HealthDates.bounds(firstDay).0, let last = try? HealthDates.bounds(lastDay).0,
+                  first <= last else { return nil }
+            let updated = (row["last_synced_at"] as? Double).map { Date(timeIntervalSince1970: $0) }
+            return (first, last, updated)
+        }
+        guard let first = values.map(\.0).min(), let last = values.map(\.1).max() else { return nil }
+        return Self(first: first, last: last, updatedAt: values.compactMap(\.2).max(), scope: SyncAvailability.scope(for: definitions))
+    }
+}
+
+private struct PublishedRangeSnapshot: Codable {
+    let scope: String
+    let range: PublishedDataRange?
 }
 
 struct RecentSyncScan: Codable, Sendable {
@@ -49,6 +90,22 @@ extension SyncStore {
     func availability(for definitions: [SeriesDefinition]) throws -> SyncAvailability? {
         let value = try availabilityValue("availability-v1", as: SyncAvailability.self)
         return value?.scope == SyncAvailability.scope(for: definitions) ? value : nil
+    }
+
+    func publishedRange(for definitions: [SeriesDefinition]) throws -> PublishedDataRange? {
+        let scope = SyncAvailability.scope(for: definitions)
+        if let snapshot = try availabilityValue("published-range-v1", as: PublishedRangeSnapshot.self), snapshot.scope == scope {
+            return snapshot.range
+        }
+        // Upgrade path: use acknowledged uploads immediately, even offline.
+        // Old journals did not record a publication timestamp; do not invent one.
+        return PublishedDataRange.fromCatalog(try rows("SELECT series,SUM(count) AS total_samples,MIN(first_day) AS first_day,MAX(last_day) AS last_day FROM uploaded GROUP BY series"), definitions: definitions)
+    }
+
+    func cachePublishedRange(_ range: PublishedDataRange?, definitions: [SeriesDefinition]) throws {
+        // Persist an empty server catalog too, so stale local rows cannot
+        // resurrect a range after the server confirms the cache is empty.
+        try saveAvailabilityValue(PublishedRangeSnapshot(scope: SyncAvailability.scope(for: definitions), range: range), key: "published-range-v1")
     }
 
     /// The pending list includes empty periods too: no samples is a completed
@@ -167,6 +224,6 @@ extension SyncStore {
     func clearAvailability() throws {
         try execute("DELETE FROM recent_pending")
         try execute("DELETE FROM recent_cursors")
-        try execute("DELETE FROM sync_metadata WHERE key IN ('availability-v1','recent-scan-v1')")
+        try execute("DELETE FROM sync_metadata WHERE key IN ('availability-v1','recent-scan-v1','published-range-v1')")
     }
 }

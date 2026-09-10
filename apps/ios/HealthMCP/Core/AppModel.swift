@@ -32,6 +32,7 @@ struct PrivacyOperation: Codable, Sendable {
     @Published var history: [SyncRun] = []
     @Published var lastSyncedAt: Date?
     @Published var syncAvailability: SyncAvailability?
+    @Published var publishedDataRange: PublishedDataRange?
     @Published var sampleCount = 0
     @Published var cloudBytes = 0
     @Published var cloudChunks = 0
@@ -54,6 +55,7 @@ struct PrivacyOperation: Codable, Sendable {
     @Published private(set) var startupError: String?
     @Published private(set) var pendingPrivacy: PrivacyOperation?
     private var privacyExecuting = false
+    private var availabilityRevision = 0
     private let preferences: UserDefaults
     private let secureStorage: any SecureStoring
     private let journalURL: URL?
@@ -117,7 +119,10 @@ struct PrivacyOperation: Codable, Sendable {
             if pendingPrivacy == nil, let legacy = try secureStorage.read("pending-rotation"), let key = String(data: legacy, encoding: .utf8) { try savePrivacy(PrivacyOperation(kind: .rotate, newKey: HealthCrypto.normalize(key))) }
             await reader.setRoutesEnabled(routesEnabled)
             sampleCount = try await journal!.totalSamples()
-            if pendingPrivacy == nil { syncAvailability = try await journal!.availability(for: definitions) }
+            if pendingPrivacy == nil {
+                syncAvailability = try await journal!.availability(for: definitions)
+                publishedDataRange = try await journal!.publishedRange(for: definitions)
+            }
             if isDemo { configureDemo(); initialized = true; return }
             if pendingPrivacy != nil { await retryPrivacy() }
             if api == nil { await initialize(); return }
@@ -253,13 +258,21 @@ struct PrivacyOperation: Codable, Sendable {
     }
     func refreshStatus(includeConnections: Bool = true) async {
         guard let client = api, !client.userID.isEmpty, !isDemo else { return }
+        let requestedDefinitions = definitions
+        let requestedScope = SyncAvailability.scope(for: requestedDefinitions)
+        let requestedRevision = availabilityRevision
         do {
             let result = try await client.json("GET", "/v1/status")
             try Task.checkCancellation()
-            guard api?.userID == client.userID else { return }
+            guard api?.userID == client.userID, pendingPrivacy == nil, requestedRevision == availabilityRevision, requestedScope == SyncAvailability.scope(for: definitions) else { return }
             if let timestamp = result["last_synced_at"] as? Double { lastSyncedAt = Date(timeIntervalSince1970: timestamp) }
             let usage = result["usage"] as? [String: Any]; cloudBytes = usage?["bytes"] as? Int ?? 0; cloudChunks = usage?["chunks"] as? Int ?? 0
             seriesCount = (result["series"] as? [Any])?.count ?? 0
+            if let catalog = result["series"] as? [[String: Any]] {
+                let range = PublishedDataRange.fromCatalog(catalog, definitions: requestedDefinitions)
+                publishedDataRange = range
+                try await journal?.cachePublishedRange(range, definitions: requestedDefinitions)
+            }
             pushStatus = result["push_registered"] as? Bool == true ? "Device registered" : "Not enabled"
             #if DEBUG
             let snapshot: [String: Any] = ["updated_at": HealthDates.timestamp(Date()), "series_count": seriesCount, "cloud_bytes": cloudBytes, "cloud_chunks": cloudChunks, "sync_running": isSyncing, "sync_run_id": currentRun?.id ?? ""]
@@ -356,9 +369,10 @@ struct PrivacyOperation: Codable, Sendable {
     func retryPrivacy() async {
         guard !privacyExecuting, var operation = pendingPrivacy else { return }
         privacyExecuting = true; busy = true
+        availabilityRevision += 1
         defer { privacyExecuting = false; busy = false }
         pauseSync(); await awaitSync()
-        syncAvailability = nil
+        syncAvailability = nil; publishedDataRange = nil
         do {
             guard let client = api, let journal else { throw HealthMCPError.message("Secure storage is not ready. Unlock your iPhone and retry.") }
             switch operation.kind {
@@ -418,7 +432,7 @@ struct PrivacyOperation: Codable, Sendable {
         try secureStorage.remove("privacy-operation"); pendingPrivacy = nil
         initialized = false; api = nil; privateKey = ""
         onboarded = false; onboardingStep = 0; history = []; currentRun = nil; connections = []; sampleCount = 0
-        groups = []; routesEnabled = false; lastSyncedAt = nil; syncAvailability = nil; cloudBytes = 0; cloudChunks = 0; seriesCount = 0; keyVisible = false; keySaved = false
+        groups = []; routesEnabled = false; lastSyncedAt = nil; syncAvailability = nil; publishedDataRange = nil; cloudBytes = 0; cloudChunks = 0; seriesCount = 0; keyVisible = false; keySaved = false
     }
     private func configureDemo() {
         onboarded = !ProcessInfo.processInfo.arguments.contains("-onboarding")
@@ -433,6 +447,10 @@ struct PrivacyOperation: Codable, Sendable {
         if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { run.status = "running"; run.trigger = "Initial backfill"; run.progress = 0.62; run.totalChunks = 320; run.uploadedChunks = 144; run.stage = "Encrypting and uploading"; run.phase = "streaming"; run.completedTypes = 17; run.totalTypes = 53; currentRun = run }
         if ProcessInfo.processInfo.arguments.contains("-ui-syncing") { syncAvailability?.since = BackfillPlan.recentStart(now: Date()); syncAvailability?.historyComplete = false; lastSyncedAt = nil }
         if ProcessInfo.processInfo.arguments.contains("-ui-recent-pending") { syncAvailability = nil; currentRun?.phase = "recent"; currentRun?.stage = "Checking recent workouts"; cloudChunks = 0; seriesCount = 0 }
+        if ProcessInfo.processInfo.arguments.contains("-ui-existing-cache") {
+            syncAvailability = nil; lastSyncedAt = nil; cloudChunks = 7186; seriesCount = 44; cloudBytes = 15_600_000
+            publishedDataRange = PublishedDataRange.fromCatalog([["series": "steps", "first_day": "2024-01-01", "last_day": "2026-09-09", "total_samples": 24836, "last_synced_at": Date().addingTimeInterval(-240).timeIntervalSince1970]], definitions: definitions)
+        }
         if ProcessInfo.processInfo.arguments.contains("-ui-paused") { currentRun?.status = "paused"; currentRun?.stage = "Progress saved. Completed uploads are available to your agents." }
         if ProcessInfo.processInfo.arguments.contains("-ui-long-stage") { currentRun?.stage = "Reading Dietary Polyunsaturated Fat · uploads continue between pages while older health history is indexed" }
         currentRun?.availability = syncAvailability
