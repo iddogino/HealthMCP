@@ -15,9 +15,15 @@ struct SyncAvailability: Codable, Equatable, Sendable {
     }
 
     var sinceLabel: String {
-        // Chunk boundaries use UTC. Do not move the displayed day back in
-        // time when the phone is west of UTC.
-        since.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted, calendar: HealthDates.calendar, timeZone: HealthDates.calendar.timeZone))
+        sinceLabel(in: .autoupdatingCurrent)
+    }
+
+    func sinceLabel(in timeZone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = timeZone
+        // This is an exact coverage boundary. If UTC midnight is mid-day
+        // locally, include the time instead of claiming that whole local day.
+        let isMidnight = calendar.startOfDay(for: since) == since
+        return since.formatted(Date.FormatStyle(date: .abbreviated, time: isMidnight ? .omitted : .shortened, locale: locale, calendar: calendar, timeZone: timeZone))
     }
 
     func freshnessLabel(at now: Date) -> String {
@@ -42,13 +48,32 @@ struct PublishedDataRange: Codable, Equatable, Sendable {
     let last: Date
     let updatedAt: Date?
     let scope: String
+    var observedAt: Date? = nil
 
     var rangeLabel: String {
-        let format = Date.FormatStyle(date: .abbreviated, time: .omitted, calendar: HealthDates.calendar, timeZone: HealthDates.calendar.timeZone)
-        return first == last ? first.formatted(format) : "\(first.formatted(format)) – \(last.formatted(format))"
+        rangeLabel(at: Date(), in: .autoupdatingCurrent)
     }
 
-    static func fromCatalog(_ rows: [[String: Any]], definitions: [SeriesDefinition]) -> Self? {
+    func displayBounds(at now: Date) -> (first: Date, last: Date) {
+        // Catalog endpoints are UTC calendar days, not sample timestamps.
+        // Convert the inclusive day interval, bounded by its last observation,
+        // rather than formatting both UTC midnights as if they were samples.
+        let end = HealthDates.calendar.date(byAdding: .day, value: 1, to: last)!.addingTimeInterval(-0.001)
+        let observed = min(updatedAt ?? observedAt ?? now, now)
+        // Keep future UTC-day metadata visible; only clip a day that already
+        // existed when the catalog was observed.
+        return (first, observed >= last ? min(end, observed) : end)
+    }
+
+    func rangeLabel(at now: Date, in timeZone: TimeZone, locale: Locale = .autoupdatingCurrent) -> String {
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = timeZone
+        let format = Date.FormatStyle(date: .abbreviated, time: .omitted, locale: locale, calendar: calendar, timeZone: timeZone)
+        let bounds = displayBounds(at: now)
+        let startLabel = bounds.first.formatted(format), endLabel = bounds.last.formatted(format)
+        return startLabel == endLabel ? startLabel : "\(startLabel) – \(endLabel)"
+    }
+
+    static func fromCatalog(_ rows: [[String: Any]], definitions: [SeriesDefinition], observedAt: Date = Date()) -> Self? {
         // Generated summaries can contain empty calendar days. Only actual
         // shared sample series establish the span of health data.
         let allowed = Set(definitions.map(\.id)).subtracting(["profile", "check", "daily_summary", "activity_rings"])
@@ -63,7 +88,7 @@ struct PublishedDataRange: Codable, Equatable, Sendable {
             return (first, last, updated)
         }
         guard let first = values.map(\.0).min(), let last = values.map(\.1).max() else { return nil }
-        return Self(first: first, last: last, updatedAt: values.compactMap(\.2).max(), scope: SyncAvailability.scope(for: definitions))
+        return Self(first: first, last: last, updatedAt: values.compactMap(\.2).max(), scope: SyncAvailability.scope(for: definitions), observedAt: observedAt)
     }
 }
 

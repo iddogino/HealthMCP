@@ -55,6 +55,8 @@ struct OverviewView: View {
     }
 }
 struct PublishedDataRangeCard: View {
+    @Environment(\.timeZone) private var timeZone
+    @Environment(\.locale) private var locale
     let range: PublishedDataRange
     let hasConnections: Bool
     let openAgents: () -> Void
@@ -65,8 +67,8 @@ struct PublishedDataRangeCard: View {
                 Label("Data available to your agents", systemImage: "checkmark.circle.fill")
                     .font(.headline).foregroundStyle(Brand.accent).accessibilityIdentifier("published-range-ready")
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Uploaded data range").font(.subheadline).foregroundStyle(Brand.secondary)
-                    Text(range.rangeLabel).font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                    Text("Uploaded data range · approximate").font(.subheadline).foregroundStyle(Brand.secondary)
+                    Text(range.rangeLabel(at: Date(), in: timeZone, locale: locale)).font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("published-range-dates")
                 }
                 TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -90,6 +92,8 @@ struct PublishedDataRangeCard: View {
     }
 }
 struct SyncAvailabilityCard: View {
+    @Environment(\.timeZone) private var timeZone
+    @Environment(\.locale) private var locale
     let availability: SyncAvailability
     let isSyncing: Bool
     let hasConnections: Bool
@@ -102,7 +106,7 @@ struct SyncAvailabilityCard: View {
                     .font(.headline).foregroundStyle(Brand.accent).accessibilityIdentifier("availability-ready")
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Synced all shared data since").font(.subheadline).foregroundStyle(Brand.secondary)
-                    Text(availability.sinceLabel).font(.title2.weight(.semibold)).accessibilityIdentifier("availability-since")
+                    Text(availability.sinceLabel(in: timeZone, locale: locale)).font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("availability-since")
                 }
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     ViewThatFits(in: .horizontal) {

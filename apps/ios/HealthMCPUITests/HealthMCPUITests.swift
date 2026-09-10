@@ -54,7 +54,7 @@ final class HealthMCPUITests:XCTestCase {
     func testExistingUploadsShowDatesImmediatelyDuringAnUnconfirmedScan() {
         let app=app(["-ui-syncing", "-ui-existing-cache"])
         XCTAssertTrue(app.staticTexts["published-range-ready"].waitForExistence(timeout:10))
-        XCTAssertTrue(app.staticTexts["published-range-dates"].label.contains("2024"))
+        XCTAssertTrue(app.staticTexts["published-range-dates"].label.contains("–"))
         XCTAssertTrue(app.staticTexts["published-range-dates"].label.contains("2026"))
         XCTAssertTrue(app.staticTexts["Last updated"].exists)
         XCTAssertTrue(app.staticTexts["Start using your agent now. Some dates and data types are still syncing."].exists)

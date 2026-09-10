@@ -8,6 +8,7 @@ final class SyncAvailabilityTests: XCTestCase {
     private var mass: SeriesDefinition { SeriesDefinition.quantities.first { $0.id == "body_mass" }! }
     private var workouts: SeriesDefinition { SeriesDefinition.all.first { $0.id == "workouts" }! }
     private func date(_ day: String) throws -> Date { try HealthDates.bounds(day).0 }
+    private func instant(_ value: String) throws -> Date { try XCTUnwrap(ISO8601DateFormatter().date(from: value)) }
     private func database() async throws -> (SyncStore, URL) {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
@@ -37,6 +38,54 @@ final class SyncAvailabilityTests: XCTestCase {
             XCTAssertTrue(plan.contains(DirtyChunk(series: series, period: "2026-09")))
         }
         XCTAssertEqual(HealthDates.day(BackfillPlan.recentStart(now: try date("2026-09-02"))), "2026-08-27")
+    }
+
+    func testUTCTomorrowDisplaysAsTheCurrentLocalDayWithoutChangingStoredDates() throws {
+        let observed = try instant("2026-09-10T01:22:34Z") // Sep 9, 6:22 PM in California
+        let range = try XCTUnwrap(PublishedDataRange.fromCatalog([
+            ["series": "steps", "total_samples": 10, "first_day": "2026-09-10", "last_day": "2026-09-10", "last_synced_at": observed.timeIntervalSince1970]
+        ], definitions: [steps], observedAt: observed))
+        let label = range.rangeLabel(at: observed, in: TimeZone(identifier: "America/Los_Angeles")!, locale: Locale(identifier: "en_US"))
+        XCTAssertEqual(label, "Sep 9, 2026")
+        XCTAssertEqual(HealthDates.day(range.first), "2026-09-10")
+        XCTAssertEqual(HealthDates.day(range.last), "2026-09-10", "Presentation must not rewrite UTC cache/MCP boundaries")
+        XCTAssertEqual(range.displayBounds(at: observed).last, observed)
+    }
+
+    func testHistoricalUTCDayUsesItsWholeIntervalAndHandlesEasternTimeZones() throws {
+        let range = PublishedDataRange(first: try date("2026-09-09"), last: try date("2026-09-09"), updatedAt: try instant("2026-09-12T00:00:00Z"), scope: "fixture")
+        let observed = try instant("2026-09-12T00:00:00Z"), locale = Locale(identifier: "en_US")
+        XCTAssertEqual(range.rangeLabel(at: observed, in: TimeZone(identifier: "America/Los_Angeles")!, locale: locale), "Sep 8, 2026 – Sep 9, 2026", "Formatting the last UTC midnight directly would incorrectly end on Sep 8")
+        XCTAssertEqual(range.rangeLabel(at: observed, in: TimeZone(identifier: "Pacific/Kiritimati")!, locale: locale), "Sep 9, 2026 – Sep 10, 2026")
+        XCTAssertEqual(range.rangeLabel(at: observed, in: TimeZone(secondsFromGMT: 0)!, locale: locale), "Sep 9, 2026")
+        let easternNow = try instant("2026-09-09T16:00:00Z")
+        let eastern = PublishedDataRange(first: range.first, last: range.last, updatedAt: easternNow, scope: "fixture")
+        XCTAssertEqual(eastern.rangeLabel(at: easternNow, in: TimeZone(identifier: "Asia/Tokyo")!, locale: locale), "Sep 9, 2026 – Sep 10, 2026")
+    }
+
+    func testLocalDateRangeSurvivesYearRolloverAndOfflineLegacyDecode() throws {
+        let observed = try instant("2027-01-01T02:00:00Z"), locale = Locale(identifier: "en_US")
+        let range = PublishedDataRange(first: try date("2027-01-01"), last: try date("2027-01-01"), updatedAt: nil, scope: "fixture", observedAt: observed)
+        let zone = TimeZone(identifier: "America/Los_Angeles")!
+        XCTAssertEqual(range.rangeLabel(at: observed + 86400, in: zone, locale: locale), "Dec 31, 2026", "Offline time passing must not extend the uploaded range")
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(range)) as? [String: Any])
+        legacy.removeValue(forKey: "observedAt")
+        let decoded = try JSONDecoder().decode(PublishedDataRange.self, from: JSONSerialization.data(withJSONObject: legacy))
+        XCTAssertNil(decoded.observedAt)
+        XCTAssertEqual(decoded.rangeLabel(at: observed, in: zone, locale: locale), "Dec 31, 2026")
+    }
+
+    func testConfirmedBoundaryIncludesLocalTimeAndRespectsDaylightSaving() throws {
+        let zone = TimeZone(identifier: "America/Los_Angeles")!, locale = Locale(identifier: "en_US")
+        var value = SyncAvailability(since: try date("2026-03-08"), refreshedAt: now, scope: "fixture", historyComplete: false, hasSamples: true)
+        let winter = value.sinceLabel(in: zone, locale: locale)
+        XCTAssertTrue(winter.contains("Mar 7, 2026")); XCTAssertTrue(winter.contains("4:00"))
+        value.since = try date("2026-03-09")
+        let summer = value.sinceLabel(in: zone, locale: locale)
+        XCTAssertTrue(summer.contains("Mar 8, 2026")); XCTAssertTrue(summer.contains("5:00"))
+        value.since = try date("2026-09-10")
+        XCTAssertTrue(value.sinceLabel(in: TimeZone(identifier: "Asia/Kolkata")!, locale: locale).contains("5:30"))
+        XCTAssertEqual(value.sinceLabel(in: TimeZone(secondsFromGMT: 0)!, locale: locale), "Sep 10, 2026")
     }
 
     func testUpgradeShowsExistingUploadsBeforeCoverageMigrationOrRecentScan() async throws {
