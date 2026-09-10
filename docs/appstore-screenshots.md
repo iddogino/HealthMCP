@@ -4,6 +4,8 @@ Five English (US) screenshots are prepared for Health MCP 1.0.0 (13). Use the PN
 
 The images retain the app's actual UI and use fictional simulator fixtures. The wrappers add headlines, background colors, and a matching iPhone frame. The captions avoid diagnosis, guaranteed background sync, and unsupported assistant compatibility claims.
 
+Health MCP is a remote service. The first image says “Encrypted cloud sync. Connect through MCP.” The bundled desktop connector shown in Settings runs locally to decrypt data; local MCP support is specific to that connector. Direct remote integrations need a trusted execution environment, private key configuration, and trusted decryption code.
+
 ## Rebuild the wrappers
 
 Run from the repository root:

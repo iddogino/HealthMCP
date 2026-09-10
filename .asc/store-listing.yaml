@@ -51,7 +51,7 @@ screenshots:
         scale: 0.66
       - &footer
         type: text
-        content: For assistants that support local MCP servers
+        content: Encrypted cloud sync. Connect through MCP.
         position: ['50%', '2796']
         font_family: /System/Library/Fonts/Supplemental/Arial.ttf
         size: 30
