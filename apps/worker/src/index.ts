@@ -7,13 +7,14 @@ import {admitDevice} from './limits';
 import {scheduled} from './push';
 import {handleMcp} from './mcp';
 import {measureBindings} from './timing';
+import {withOAuthStorage,oauthStorageMode,oauthUnavailable} from './oauth-storage';
 import {type Env,type User,type AuthProps,HttpError,json,now} from './types';
 
 async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Response> {
   const url=new URL(request.url),path=url.pathname;
   if(path==='/health' && request.method==='GET') {
     await env.DB.prepare('SELECT 1').first();
-    return json({service:'healthmcp',version:'1.0.0',status:'ok',push_configured:Boolean(env.APNS_PRIVATE_KEY)});
+    return json({service:'healthmcp',version:'1.0.0',status:'ok',push_configured:Boolean(env.APNS_PRIVATE_KEY),oauth_storage:oauthStorageMode(env)});
   }
   if(path==='/.well-known/apple-app-site-association') return json({applinks:{details:[{appIDs:[`${env.APP_TEAM_ID}.${env.APP_BUNDLE_ID}`],components:[{'/':'/pair'}]}]}});
   if(path==='/authorize' && request.method==='GET') return authorize(request,env);
@@ -82,6 +83,7 @@ export default {
         throw new HttpError(400,'Invalid host');
       }
       if(request.method==='OPTIONS') response=new Response(null,{status:204});
+      else if(oauthStorageMode(env)==='migrating' && request.method!=='GET' && !url.pathname.startsWith('/v1/') && url.pathname!=='/mcp') response=oauthUnavailable();
       else {
         if(url.pathname==='/register' && request.method==='POST') {
           await durableRateLimit(env,'dcr:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
@@ -89,7 +91,7 @@ export default {
           const slots=await env.DB.prepare("INSERT INTO admission_counters(name,count) VALUES('oauth_clients',1) ON CONFLICT(name) DO UPDATE SET count=count+1 WHERE count<10000 RETURNING count").first();
           if(!slots) throw new HttpError(503,'Client registration is at capacity. Contact support@healthmcp.cc.');
         }
-        response=await provider(env).fetch(request,env,ctx);
+        response=await provider(env).fetch(request,withOAuthStorage(env),ctx);
       }
     } catch(error) {
       response=json({error:error instanceof HttpError?error.message:'The request could not be completed'},error instanceof HttpError?error.status:500);

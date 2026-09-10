@@ -7,6 +7,7 @@ export interface Env extends NativeRateLimitBindings {
   DB: D1Database;
   BLOBS: R2Bucket;
   OAUTH_KV: KVNamespace;
+  OAUTH_STORAGE_MODE?: 'kv'|'migrating'|'d1';
   OAUTH_PROVIDER: OAuthHelpers;
   BLOB_SIGNING_SECRET: string;
   PUBLIC_ORIGIN: string;

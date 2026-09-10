@@ -1,0 +1,143 @@
+{
+  "reviewed_at": "2026-09-10T18:44:28.821673+00:00",
+  "verdict": "hold_latest_candidate",
+  "scope": {
+    "base": "e1ec039",
+    "head": "88534f203a0d1b968b79d4e5612f75a40db62f27",
+    "ios_build": 16,
+    "worker_version": "40b08afc-be5a-438b-a4b1-56aba74d1f60"
+  },
+  "findings": [
+    {
+      "id": "R1",
+      "priority": 1,
+      "title": "Disjoint verified intervals are merged into a complete coverage claim",
+      "locations": [
+        "apps/ios/HealthMCP/Core/SyncAvailability.swift:275",
+        "apps/ios/HealthMCP/Core/SyncAvailability.swift:340",
+        "apps/ios/HealthMCP/Core/SyncAvailability.swift:214"
+      ],
+      "reproduced": true,
+      "observations": [
+        "REVIEW_GAP onboarding old_scan_through=2026-09-09T12:00:00Z new_scan_since=2026-09-17T00:00:00Z claimed_since=2026-09-03T00:00:00Z claimed_through=2026-09-23T12:00:00Z",
+        "REVIEW_GAP resume before=2026-09-09T12:00:00Z scanned_since=2026-09-17T00:00:00Z claimed_since=2026-09-03T00:00:00Z claimed_through=2026-09-23T12:00:00Z"
+      ]
+    },
+    {
+      "id": "R2",
+      "priority": 1,
+      "title": "Production rejects a newly issued refresh token intermittently",
+      "failure": "HTTP 400 invalid_grant (Invalid refresh token)",
+      "root_cause_confirmed": false,
+      "new_regression_attribution_confirmed": false
+    }
+  ],
+  "tests": {
+    "typecheck": "passed",
+    "worker": {
+      "passed": 44,
+      "failed": 0
+    },
+    "ios": {
+      "existing_unit_tests_per_runtime": 55,
+      "existing_ui_tests_per_runtime": 8,
+      "added_review_reproductions_per_runtime": 2,
+      "devices": [
+        {
+          "device": {
+            "architecture": "arm64",
+            "deviceId": "18E973DE-6B02-4BB0-B9D6-EF9E527CEC98",
+            "deviceName": "iPhone 17 Pro",
+            "modelName": "iPhone 17 Pro",
+            "osBuildNumber": "23D8133",
+            "osVersion": "26.3.1",
+            "platform": "iOS Simulator"
+          },
+          "expectedFailures": 0,
+          "failedTests": 2,
+          "passedTests": 63,
+          "skippedTests": 0,
+          "testPlanConfiguration": {
+            "configurationId": "1",
+            "configurationName": "Test Scheme Action"
+          }
+        },
+        {
+          "device": {
+            "architecture": "arm64",
+            "deviceId": "A83361E0-24B8-4BD0-B767-E6DA35BD1166",
+            "deviceName": "iPhone SE (3rd generation)",
+            "modelName": "iPhone SE (3rd generation)",
+            "osBuildNumber": "22B81",
+            "osVersion": "18.1",
+            "platform": "iOS Simulator"
+          },
+          "expectedFailures": 0,
+          "failedTests": 2,
+          "passedTests": 63,
+          "skippedTests": 0,
+          "testPlanConfiguration": {
+            "configurationId": "1",
+            "configurationName": "Test Scheme Action"
+          }
+        }
+      ],
+      "failures": [
+        {
+          "failureText": "XCTAssertTrue failed - Finishing an old initial window cannot merge two disjoint verified intervals into one complete range",
+          "targetName": "HealthMCPTests",
+          "testIdentifier": 14,
+          "testIdentifierString": "FreshDataPriorityTests/testReviewInterruptedOnboardingDoesNotBridgeAnUnscannedGap()",
+          "testIdentifierURL": "test://com.apple.xcode/HealthMCP/HealthMCPTests/FreshDataPriorityTests/testReviewInterruptedOnboardingDoesNotBridgeAnUnscannedGap",
+          "testName": "testReviewInterruptedOnboardingDoesNotBridgeAnUnscannedGap()"
+        },
+        {
+          "failureText": "XCTAssertTrue failed - A recent-only catch-up cannot claim continuous coverage across the unscanned dates between the old checkpoint and its clipped start",
+          "targetName": "HealthMCPTests",
+          "testIdentifier": 15,
+          "testIdentifierString": "FreshDataPriorityTests/testReviewLongAbsenceDoesNotBridgeAnUnscannedGap()",
+          "testIdentifierURL": "test://com.apple.xcode/HealthMCP/HealthMCPTests/FreshDataPriorityTests/testReviewLongAbsenceDoesNotBridgeAnUnscannedGap",
+          "testName": "testReviewLongAbsenceDoesNotBridgeAnUnscannedGap()"
+        }
+      ]
+    },
+    "production_e2e": {
+      "functional_checks_passed_before_failure": 15,
+      "failure": "first OAuth refresh",
+      "cleanup": "passed"
+    },
+    "separate_refresh_probe": {
+      "completed_at": "2026-09-10T18:40:19.480Z",
+      "observations": [
+        {
+          "elapsed_s": 14,
+          "status": 200,
+          "colo": "SJC"
+        }
+      ]
+    }
+  },
+  "asc_version": {
+    "id": "5806847e-2cd2-47c1-a26f-be83e82453f4",
+    "versionString": "1.0.0",
+    "platform": "IOS",
+    "state": "WAITING_FOR_REVIEW",
+    "buildId": "9db5eadd-b05c-4d65-8f9b-c4d83de8214a",
+    "buildVersion": "14",
+    "submissionId": "5806847e-2cd2-47c1-a26f-be83e82453f4"
+  },
+  "changes_made": {
+    "product_source": false,
+    "deployment": false,
+    "app_store_submission": false,
+    "review_reports": true,
+    "temporary_test_additions_removed": true
+  },
+  "limitations": [
+    "Full physical backfill not completed by this review",
+    "Overnight background scheduling reliability not established",
+    "App Privacy publication not rechecked in browser",
+    "Production E2E checks after refresh failure did not run"
+  ],
+  "raw_evidence_directory": "artifacts/recent-changes-review-2026-09-10"
+}

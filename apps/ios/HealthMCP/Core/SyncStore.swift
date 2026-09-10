@@ -79,6 +79,7 @@ actor SyncStore {
         try execute("CREATE TABLE IF NOT EXISTS fresh_windows (id TEXT PRIMARY KEY, since REAL NOT NULL, through REAL NOT NULL, scope TEXT NOT NULL, complete INTEGER NOT NULL DEFAULT 0)")
         try execute("CREATE TABLE IF NOT EXISTS fresh_pending (window TEXT NOT NULL, series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(window,series,period))")
         try execute("CREATE TABLE IF NOT EXISTS fresh_cursors (window TEXT NOT NULL, type TEXT NOT NULL, value BLOB NOT NULL, complete INTEGER NOT NULL, PRIMARY KEY(window,type))")
+        try migrateAvailabilityContinuity()
         if try rows("SELECT 1 FROM sync_metadata WHERE key='incremental-v1'").isEmpty {
             try execute("BEGIN IMMEDIATE")
             do {

@@ -110,6 +110,34 @@ struct FreshSyncWindow: Sendable {
 }
 
 extension SyncStore {
+    func migrateAvailabilityContinuity() throws {
+        guard try rows("SELECT 1 FROM sync_metadata WHERE key='availability-continuity-v2'").isEmpty else { return }
+        try execute("BEGIN IMMEDIATE")
+        do {
+            // Older releases may have bridged an unscanned interval. Retain
+            // their verified recent suffix; normal historical indexing will
+            // re-establish older coverage without resetting uploads or anchors.
+            if var value = try availabilityValue("availability-v1", as: SyncAvailability.self) {
+                value.since = max(value.since, BackfillPlan.recentStart(now: value.refreshedAt))
+                value.historyComplete = false
+                try saveAvailabilityValue(value, key: "availability-v1")
+            }
+            try execute("INSERT INTO sync_metadata(key,value) VALUES('availability-continuity-v2','1')")
+            try execute("COMMIT")
+        } catch { try? execute("ROLLBACK"); throw error }
+    }
+
+    private func mergingAvailability(_ previous: SyncAvailability?, since: Date, through: Date, scope: String) throws -> SyncAvailability {
+        let samples = try hasPublishedSamples()
+        guard let previous else { return SyncAvailability(since: since, refreshedAt: through, scope: scope, historyComplete: false, hasSamples: samples) }
+        if since <= previous.refreshedAt && through >= previous.since {
+            return SyncAvailability(since: min(previous.since, since), refreshedAt: max(previous.refreshedAt, through), scope: scope, historyComplete: previous.historyComplete, hasSamples: samples)
+        }
+        // Never manufacture continuity from the bounding dates of disjoint
+        // scans. Pending windows retain the missing work across relaunches.
+        if through > previous.refreshedAt { return SyncAvailability(since: since, refreshedAt: through, scope: scope, historyComplete: false, hasSamples: samples) }
+        var value = previous; value.hasSamples = samples; return value
+    }
     private func availabilityValue<T: Decodable>(_ key: String, as type: T.Type) throws -> T? {
         guard let value = try rows("SELECT value FROM sync_metadata WHERE key=?", [key]).first?["value"] as? String else { return nil }
         return try JSONDecoder().decode(type, from: Data(value.utf8))
@@ -211,7 +239,7 @@ extension SyncStore {
         }
         guard try rows("SELECT 1 FROM recent_pending LIMIT 1").isEmpty, try pendingCatalog().isEmpty else { return try availability(for: definitions) }
         let previous = try availability(for: definitions)
-        let value = SyncAvailability(since: min(previous?.since ?? scan.since, scan.since), refreshedAt: max(previous?.refreshedAt ?? scan.through, scan.through), scope: scan.scope, historyComplete: false, hasSamples: try hasPublishedSamples())
+        let value = try mergingAvailability(previous, since: scan.since, through: scan.through, scope: scan.scope)
         try execute("BEGIN IMMEDIATE")
         do {
             try saveAvailabilityValue(value, key: "availability-v1")
@@ -268,20 +296,25 @@ extension SyncStore {
     func prepareFreshWindow(definitions: [SeriesDefinition], through now: Date, enqueue: Bool) throws -> FreshSyncWindow? {
         let scope = SyncAvailability.scope(for: definitions)
         if enqueue {
-            let pendingEnd = try rows("SELECT MAX(through) AS value FROM fresh_windows WHERE scope=?", [scope]).first?["value"] as? Double
-            let confirmed = try availability(for: definitions)?.refreshedAt
+            let confirmed = try availability(for: definitions)
             let initial = try availabilityValue("recent-scan-v1", as: RecentSyncScan.self)
-            if let previous = pendingEnd.map({ Date(timeIntervalSince1970: $0) }) ?? confirmed ?? (initial?.scope == scope ? initial?.through : nil), now.timeIntervalSince(previous) >= 60 {
-                let since = max(previous, BackfillPlan.recentStart(now: now))
-                let window = FreshSyncWindow(id: UUID().uuidString, since: since, through: now)
+            if var frontier = (initial?.scope == scope ? initial?.through : nil) ?? confirmed?.refreshedAt {
+                var intervals = try rows("SELECT since,through FROM fresh_windows WHERE scope=? ORDER BY since", [scope]).map {
+                    (Date(timeIntervalSince1970: $0["since"] as! Double), Date(timeIntervalSince1970: $0["through"] as! Double))
+                }
+                if let confirmed { intervals.append((confirmed.since, confirmed.refreshedAt)) }
                 try execute("BEGIN IMMEDIATE")
                 do {
-                    try execute("INSERT INTO fresh_windows(id,since,through,scope) VALUES(?,?,?,?)", [window.id, since.timeIntervalSince1970, now.timeIntervalSince1970, scope])
-                    for chunk in BackfillPlan.chunks(definitions: definitions, since: since, through: now) { try queueFresh(chunk, window: window.id) }
-                    for series in Set(definitions.filter { $0.chunk == "record" && $0.kind != .route }.map(\.id)) {
-                        for row in try rows("SELECT period FROM uploaded WHERE series=? AND last_day>=? AND first_day<=?", [series, HealthDates.day(since), HealthDates.day(now)]) {
-                            if let period = row["period"] as? String { try queueFresh(DirtyChunk(series: series, period: period), window: window.id) }
-                        }
+                    // Also repair clipped, unfinished windows from build 16.
+                    // Their predicates and record cursors remain unchanged.
+                    for (since, through) in intervals.sorted(by: { $0.0 < $1.0 }) {
+                        if since > frontier { try enqueueFreshWindow(definitions: definitions, since: frontier, through: since, scope: scope) }
+                        frontier = max(frontier, through)
+                    }
+                    if now.timeIntervalSince(frontier) >= 60 {
+                        let recent = max(frontier, BackfillPlan.recentStart(now: now))
+                        if recent > frontier { try enqueueFreshWindow(definitions: definitions, since: frontier, through: recent, scope: scope) }
+                        try enqueueFreshWindow(definitions: definitions, since: recent, through: now, scope: scope)
                     }
                     try execute("COMMIT")
                 } catch { try? execute("ROLLBACK"); throw error }
@@ -290,6 +323,16 @@ extension SyncStore {
         guard let row = try rows("SELECT id,since,through FROM fresh_windows WHERE scope=? AND complete=0 ORDER BY through DESC LIMIT 1", [scope]).first,
               let id = row["id"] as? String, let since = row["since"] as? Double, let through = row["through"] as? Double else { return nil }
         return FreshSyncWindow(id: id, since: Date(timeIntervalSince1970: since), through: Date(timeIntervalSince1970: through))
+    }
+    private func enqueueFreshWindow(definitions: [SeriesDefinition], since: Date, through: Date, scope: String) throws {
+        let id = UUID().uuidString
+        try execute("INSERT INTO fresh_windows(id,since,through,scope) VALUES(?,?,?,?)", [id, since.timeIntervalSince1970, through.timeIntervalSince1970, scope])
+        for chunk in BackfillPlan.chunks(definitions: definitions, since: since, through: through) { try queueFresh(chunk, window: id) }
+        for series in Set(definitions.filter { $0.chunk == "record" && $0.kind != .route }.map(\.id)) {
+            for row in try rows("SELECT period FROM uploaded WHERE series=? AND last_day>=? AND first_day<=?", [series, HealthDates.day(since), HealthDates.day(through)]) {
+                if let period = row["period"] as? String { try queueFresh(DirtyChunk(series: series, period: period), window: id) }
+            }
+        }
     }
     private func queueFresh(_ chunk: DirtyChunk, window: String) throws {
         try execute("INSERT OR IGNORE INTO fresh_pending(window,series,period) VALUES(?,?,?)", [window, chunk.series, chunk.period])
@@ -334,11 +377,11 @@ extension SyncStore {
             try execute("UPDATE fresh_windows SET complete=1 WHERE id=?", [window.id])
             let scope = SyncAvailability.scope(for: definitions)
             if try rows("SELECT 1 FROM fresh_windows WHERE scope=? AND complete=0 LIMIT 1", [scope]).isEmpty {
-                let bounds = try rows("SELECT MIN(since) AS since,MAX(through) AS through FROM fresh_windows WHERE scope=?", [scope]).first!
-                let since = Date(timeIntervalSince1970: bounds["since"] as! Double), through = Date(timeIntervalSince1970: bounds["through"] as! Double)
-                let previous = try availability(for: definitions)
-                let value = SyncAvailability(since: min(previous?.since ?? since, since), refreshedAt: max(previous?.refreshedAt ?? through, through), scope: scope, historyComplete: previous?.historyComplete ?? false, hasSamples: try hasPublishedSamples())
-                try saveAvailabilityValue(value, key: "availability-v1")
+                var value = try availability(for: definitions)
+                for interval in try rows("SELECT since,through FROM fresh_windows WHERE scope=? ORDER BY since", [scope]) {
+                    value = try mergingAvailability(value, since: Date(timeIntervalSince1970: interval["since"] as! Double), through: Date(timeIntervalSince1970: interval["through"] as! Double), scope: scope)
+                }
+                if let value { try saveAvailabilityValue(value, key: "availability-v1") }
                 try execute("DELETE FROM fresh_cursors WHERE window IN (SELECT id FROM fresh_windows WHERE scope=?)", [scope])
                 try execute("DELETE FROM fresh_pending WHERE window IN (SELECT id FROM fresh_windows WHERE scope=?)", [scope])
                 try execute("DELETE FROM fresh_windows WHERE scope=?", [scope])

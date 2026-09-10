@@ -9,7 +9,8 @@
 | Marketing Worker assets | `healthmcp-site` |
 | D1 | `healthmcp-db` / `48f345cb-4704-4095-bc2e-42853ea91dd4` |
 | Private R2 | `healthmcp-encrypted` |
-| OAuth KV | `healthmcp-oauth` / `cb95c9974c6d4d5496efed51a3ca90a7` |
+| APNs JWT cache / legacy OAuth KV | `healthmcp-oauth` / `cb95c9974c6d4d5496efed51a3ca90a7` |
+| OAuth authority | D1 `oauth_state` table |
 | Apple team | `HL9SP7TJ3J` |
 | Bundle | `cc.healthmcp.app` / `ZH43M6CA8Q` |
 | App Store Connect app | `6809625249` |
@@ -21,7 +22,7 @@ Both APNs private keys are Worker secrets, and their original downloads have own
 
 ## Sync and recovery
 
-The app commits HealthKit query anchors, sample identifiers, and dirty chunk markers together in SQLite. An interrupted upload leaves the dirty marker in place. A successful upload removes it and queues durable catalog publication. Each HealthKit page is limited to 1,000 records; up to four chunks upload concurrently between pages. Recent periods are seeded first, and successfully uploaded series become available through MCP before enumeration finishes. Each failed upload gets up to three attempts, and remaining failures are saved in history.
+The app commits HealthKit query anchors, sample identifiers, and dirty chunk markers together in SQLite. An interrupted upload leaves the dirty marker in place. A successful upload removes it and queues durable catalog publication. Each HealthKit page is limited to 1,000 records; up to eight chunks upload concurrently between pages, with eight request starts per second. Recent periods are seeded first, and successfully uploaded series become available through MCP before enumeration finishes. Each failed upload gets up to three attempts, and remaining failures are saved in history.
 
 The sync engine, HealthKit readers, and journal use background actors. Main-actor progress updates are throttled, prepared SQLite statements are reused, and HealthKit queries have cancellation and a 90-second timeout. Build 4 migrates the existing journal without resetting anchors or the private key. See [sync performance](sync-performance.md) for measurements and restart tests.
 
@@ -34,6 +35,24 @@ A sync request is throttled independently of upload completion to one per 15 min
 If iOS locks access to HealthKit, sync pauses with one recovery message and keeps anchors and pending chunks intact. Opening the app after unlocking resumes. The screen stays awake during foreground sync, including after returning from a system prompt.
 
 The HealthKit observers, scheduled background task, foreground entry, and APNs delegate share the same app model, including during a background launch. HealthKit and the Keychain remain subject to device lock protection. Force-quitting prevents background delivery until the app is opened again.
+
+After a long absence, catch-up checks the newest week first and retains the intervening dates as durable pending work. Confirmed coverage cannot span a gap until that work and catalog publication finish. Build 17 repairs clipped pending windows from older builds and conservatively revalidates older coverage claims, preserving uploaded data, anchors and keys.
+
+## OAuth storage and migration
+
+`OAUTH_STORAGE_MODE=d1` is the production setting. Authorization grants, access tokens and client registrations use the primary D1 database; the provider's existing hashes and encrypted properties retain their original format. Reads do not use replica sessions. [Cloudflare documents that queries outside the Sessions API execute on the primary](https://developers.cloudflare.com/d1/best-practices/read-replication/).
+
+Grant updates compare the revision read by the current request. A conflicting refresh returns OAuth `temporarily_unavailable` / HTTP 503 with `Retry-After: 1`; it cannot overwrite a newer grant or resurrect a revoked one. Grant retirement and token retirement are atomic, and new token rows require a live grant. Expiration and pending deletion are swept by the existing cron. Native Cloudflare request limiters remain in use; these D1 records are authorization state, not rate counters.
+
+For a deployment with existing KV-based OAuth state:
+
+1. Apply migration `0005_oauth_state.sql` and verify success before deploying the gate.
+2. Deploy with `--var OAUTH_STORAGE_MODE:migrating`. Existing MCP access uses the legacy store. New OAuth mutations return HTTP 503 with `Retry-After: 60`. Privacy deletion also writes D1 tombstones so imports cannot restore revoked data.
+3. Run `node scripts/migrate-oauth-state.mjs`. It verifies the gate, waits two minutes for old requests/writes, transfers the three OAuth key prefixes through Wrangler, and checks every row or revocation tombstone. Temporary transfer files have owner-only permissions and are removed afterward. Only counts and a digest are retained as evidence. If a transfer fails, leave the gate in place and rerun the idempotent import after resolving the error.
+4. Deploy the normal configuration with `OAUTH_STORAGE_MODE=d1`. Verify a pairing created before migration, new consent, multiple refresh rotations, local decryption and revocation.
+5. Run `node scripts/migrate-oauth-state.mjs --cleanup-legacy` to remove verified legacy OAuth copies. APNs cache keys are outside the migrated prefixes and remain in KV.
+
+For a rehearsal, use the script's `--local`, `--config`, and `--persist-to` arguments with isolated Wrangler state. Do not switch back to `kv` or deploy an old Worker after D1 starts issuing tokens: its KV copy will be stale. Roll forward with a Worker that retains the D1 adapter. The cryptographic protocol, phone API and client configuration remain compatible.
 
 ## Apple distribution
 

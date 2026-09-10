@@ -20,7 +20,7 @@
     {"name":"DOWNLOAD_USER_LIMITER","namespace_id":"680962507","simple":{"limit":1200,"period":60}},
     {"name":"DOWNLOAD_GLOBAL_LIMITER","namespace_id":"680962508","simple":{"limit":12000,"period":60}}
   ],
-  "vars": {"PUBLIC_ORIGIN":"https://mcp.healthmcp.cc","APP_TEAM_ID":"HL9SP7TJ3J","APP_BUNDLE_ID":"cc.healthmcp.app","APNS_TEAM_ID":"HL9SP7TJ3J","APNS_KEY_ID":"4P92YGPR7L","APNS_SANDBOX_KEY_ID":"H2F7LMNCSX"},
+  "vars": {"PUBLIC_ORIGIN":"https://mcp.healthmcp.cc","OAUTH_STORAGE_MODE":"d1","APP_TEAM_ID":"HL9SP7TJ3J","APP_BUNDLE_ID":"cc.healthmcp.app","APNS_TEAM_ID":"HL9SP7TJ3J","APNS_KEY_ID":"4P92YGPR7L","APNS_SANDBOX_KEY_ID":"H2F7LMNCSX"},
   "triggers": {"crons":["* * * * *"]},
   "observability": {"enabled":true,"head_sampling_rate":0.1},
   "limits": {"cpu_ms":30000}

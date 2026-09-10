@@ -165,3 +165,107 @@ private actor FreshUploader: SyncUploading {
     func updateCatalog(_ summary: UploadedSummary) throws { if failCatalog { throw HealthMCPError.message("Synthetic catalog failure") } }
     func completeSync() {}
 }
+
+extension FreshDataPriorityTests {
+    func testLongGapRunsNewestFirstAndSurvivesRelaunchUntilEveryMissingDateIsAcknowledged() async throws {
+        let (store, url) = try await database(), definitions = [steps]
+        try await confirmInitial(store, definitions: definitions)
+        let resumedAt = now + 14 * 86400
+        let newestResult = try await store.prepareFreshWindow(definitions: definitions, through: resumedAt, enqueue: true)
+        let newest = try XCTUnwrap(newestResult)
+        XCTAssertEqual(newest.since, BackfillPlan.recentStart(now: resumedAt))
+        try await acknowledge(store.nextFreshChunks(window: newest.id, limit: 1000, excluding: []), store: store)
+        let newestConfirmed = try await store.confirmFreshWindow(newest, definitions: definitions)
+        XCTAssertTrue(newestConfirmed)
+        let reopened = try await SyncStore.open(url: url)
+        let gapResult = try await reopened.prepareFreshWindow(definitions: definitions, through: resumedAt, enqueue: true)
+        let gap = try XCTUnwrap(gapResult)
+        XCTAssertEqual(gap.since, now)
+        XCTAssertEqual(gap.through, newest.since)
+        let before = try await reopened.availability(for: definitions)
+        XCTAssertEqual(before?.refreshedAt, now)
+        let pending = try await reopened.nextFreshChunks(window: gap.id, limit: 1000, excluding: [])
+        XCTAssertTrue(pending.contains(DirtyChunk(series: "steps", period: HealthDates.day(now + 2 * 86400))))
+        try await acknowledge(pending, store: reopened)
+        let confirmed = try await reopened.confirmFreshWindow(gap, definitions: definitions)
+        XCTAssertTrue(confirmed)
+        let after = try await reopened.availability(for: definitions)
+        XCTAssertEqual(after?.since, BackfillPlan.recentStart(now: now))
+        XCTAssertEqual(after?.refreshedAt, resumedAt)
+        let finished = try await reopened.prepareFreshWindow(definitions: definitions, through: resumedAt, enqueue: false)
+        XCTAssertNil(finished)
+    }
+
+    func testUpgradeRepairsClippedPendingWindowsWithoutReplacingTheirCursors() async throws {
+        let (store, _) = try await database(), definitions = [steps, workouts]
+        try await confirmInitial(store, definitions: definitions)
+        let resumedAt = now + 14 * 86400, since = BackfillPlan.recentStart(now: now + 14 * 86400)
+        let scope = SyncAvailability.scope(for: definitions)
+        try await store.execute("INSERT INTO fresh_windows(id,since,through,scope) VALUES('legacy',?,?,?)", [since.timeIntervalSince1970, resumedAt.timeIntervalSince1970, scope])
+        let type = workouts.sampleType!.identifier
+        try await store.stageFreshRecords(window: "legacy", type: type, page: HealthPage(samples: [], deleted: [], anchor: HKQueryAnchor(fromValue: 1000), readCount: 1000, hasMore: true))
+        let newest = try await store.prepareFreshWindow(definitions: definitions, through: resumedAt, enqueue: true)
+        XCTAssertEqual(newest?.id, "legacy")
+        let cursor = try await store.freshCursor(window: "legacy", type: type)
+        XCTAssertNotNil(cursor.anchor)
+        XCTAssertFalse(cursor.complete)
+        let gaps = try await store.rows("SELECT since,through FROM fresh_windows WHERE id!='legacy'")
+        XCTAssertEqual(gaps.count, 1)
+        XCTAssertEqual(gaps.first?["since"] as? Double, now.timeIntervalSince1970)
+        XCTAssertEqual(gaps.first?["through"] as? Double, since.timeIntervalSince1970)
+    }
+
+    func testUpgradeRevalidatesLegacyCoverageWithoutDiscardingUploadedHistory() async throws {
+        let (store, url) = try await database(), definitions = [steps]
+        try await confirmInitial(store, definitions: definitions)
+        let original = SyncAvailability(since: now - 365 * 86400, refreshedAt: now, scope: SyncAvailability.scope(for: definitions), historyComplete: true, hasSamples: true)
+        let encoded = String(decoding: try JSONEncoder().encode(original), as: UTF8.self)
+        try await store.execute("UPDATE sync_metadata SET value=? WHERE key='availability-v1'", [encoded])
+        try await store.execute("DELETE FROM sync_metadata WHERE key='availability-continuity-v2'")
+        let before = try await store.publishedRange(for: definitions)
+        let reopened = try await SyncStore.open(url: url)
+        let after = try await reopened.availability(for: definitions)
+        XCTAssertEqual(after?.since, BackfillPlan.recentStart(now: now))
+        XCTAssertEqual(after?.refreshedAt, now)
+        XCTAssertEqual(after?.historyComplete, false)
+        let uploaded = try await reopened.publishedRange(for: definitions)
+        XCTAssertEqual(uploaded?.first, before?.first)
+        XCTAssertEqual(uploaded?.last, before?.last)
+        XCTAssertEqual(uploaded?.scope, before?.scope)
+    }
+
+    func testReviewLongAbsenceDoesNotBridgeAnUnscannedGap() async throws {
+        let (store, _) = try await database(), definitions = [steps]
+        try await confirmInitial(store, definitions: definitions)
+        let beforeResult = try await store.availability(for: definitions)
+        let before = try XCTUnwrap(beforeResult)
+        let resumedAt = now + 14 * 86400
+        let result = try await store.prepareFreshWindow(definitions: definitions, through: resumedAt, enqueue: true)
+        let window = try XCTUnwrap(result)
+        try await acknowledge(store.nextFreshChunks(window: window.id, limit: 1000, excluding: []), store: store)
+        let confirmed = try await store.confirmFreshWindow(window, definitions: definitions)
+        XCTAssertTrue(confirmed)
+        let afterResult = try await store.availability(for: definitions)
+        let after = try XCTUnwrap(afterResult)
+        print("REVIEW_GAP resume before=\(HealthDates.timestamp(before.refreshedAt)) scanned_since=\(HealthDates.timestamp(window.since)) claimed_since=\(HealthDates.timestamp(after.since)) claimed_through=\(HealthDates.timestamp(after.refreshedAt))")
+        XCTAssertTrue(after.refreshedAt <= before.refreshedAt || after.since >= window.since,
+                      "A recent-only catch-up cannot claim continuous coverage across the unscanned dates between the old checkpoint and its clipped start")
+    }
+
+    func testReviewInterruptedOnboardingDoesNotBridgeAnUnscannedGap() async throws {
+        let (store, _) = try await database(), definitions = [steps]
+        _ = try await store.beginRecentScan(definitions: definitions, now: now)
+        let resumedAt = now + 14 * 86400
+        let result = try await store.prepareFreshWindow(definitions: definitions, through: resumedAt, enqueue: true)
+        let window = try XCTUnwrap(result)
+        try await acknowledge(store.nextFreshChunks(window: window.id, limit: 1000, excluding: []), store: store)
+        let freshConfirmed = try await store.confirmFreshWindow(window, definitions: definitions)
+        XCTAssertTrue(freshConfirmed)
+        try await acknowledge(store.nextRecentChunks(limit: 1000, excluding: []), store: store)
+        let initialResult = try await store.confirmRecentScan(definitions: definitions)
+        let after = try XCTUnwrap(initialResult)
+        print("REVIEW_GAP onboarding old_scan_through=\(HealthDates.timestamp(now)) new_scan_since=\(HealthDates.timestamp(window.since)) claimed_since=\(HealthDates.timestamp(after.since)) claimed_through=\(HealthDates.timestamp(after.refreshedAt))")
+        XCTAssertTrue(after.refreshedAt <= now || after.since >= window.since,
+                      "Finishing an old initial window cannot merge two disjoint verified intervals into one complete range")
+    }
+}

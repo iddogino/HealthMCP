@@ -12,7 +12,7 @@
     "dev:site": "npm --prefix apps/site run dev",
     "build": "npm run typecheck && npm --prefix apps/site run build",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --import ./tests/helpers/workers-runtime.mjs --import tsx --test tests/*.test.ts",
     "test:e2e": "node --import tsx scripts/e2e.ts",
     "test:ratelimits": "node --import tsx scripts/native-rate-limits-e2e.ts",
     "test:client": "node --import tsx scripts/trusted-client-e2e.ts",

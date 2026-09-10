@@ -40,6 +40,7 @@
     {"name":"DOWNLOAD_GLOBAL_LIMITER","namespace_id":"1680962508","simple":{"limit":12000,"period":60}}
   ],
   "vars": {
+    "OAUTH_STORAGE_MODE": "d1",
     "PUBLIC_ORIGIN": "http://localhost:8787",
     "APP_TEAM_ID": "HL9SP7TJ3J",
     "APP_BUNDLE_ID": "cc.healthmcp.app",

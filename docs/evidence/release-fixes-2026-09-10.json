@@ -1,0 +1,141 @@
+{
+  "completed_at": "2026-09-10T20:56:14.853Z",
+  "scope": {
+    "base": "88534f203a0d1b968b79d4e5612f75a40db62f27",
+    "ios_version": "1.0.0",
+    "ios_build": 17,
+    "worker_version": "73a42bf5-5b3d-4d57-bd7a-bdcb8474012f"
+  },
+  "addressed_findings": [
+    {
+      "id": "R1",
+      "status": "fixed",
+      "regressions": 5,
+      "behavior": "Queues omitted catch-up intervals durably, checks the newest week first, and never merges disjoint verified intervals into complete coverage. Upgrade preserves uploads and cursors while revalidating older coverage claims."
+    },
+    {
+      "id": "R2",
+      "status": "fixed",
+      "regressions": 7,
+      "behavior": "Moves mutable OAuth state from eventually consistent KV to primary D1, with revision checks and atomic grant/token retirement.",
+      "proof": "A stale-KV fixture reproduces the first-refresh invalid_grant error; the D1 adapter passes eight immediate rotations with the same stale legacy store. Existing production pairing and five rotations pass after migration.",
+      "historical_cloudflare_cache_state_traced": false
+    }
+  ],
+  "tests": {
+    "typecheck": "passed",
+    "worker": {
+      "passed": 51,
+      "failed": 0
+    },
+    "ios": {
+      "unique_tests": 68,
+      "unit_tests_per_runtime": 60,
+      "ui_tests_per_runtime": 8,
+      "total_passing_executions": 136,
+      "failed": 0,
+      "runtimes": [
+        {
+          "name": "iPhone 17 Pro",
+          "os_version": "26.3.1",
+          "passed": 68,
+          "failed": 0
+        },
+        {
+          "name": "iPhone SE (3rd generation)",
+          "os_version": "18.1",
+          "passed": 68,
+          "failed": 0
+        }
+      ]
+    },
+    "local_e2e": {
+      "passed": 21,
+      "failed": 0
+    },
+    "local_packaged_client": {
+      "passed": 5,
+      "failed": 0
+    },
+    "production_e2e_before_cleanup": {
+      "passed": 21,
+      "failed": 0
+    },
+    "production_e2e_after_cleanup": {
+      "passed": 21,
+      "failed": 0
+    },
+    "production_packaged_client": {
+      "passed": 5,
+      "failed": 0
+    },
+    "migration_probe_local": {
+      "completed_at": "2026-09-10T20:27:18.540Z",
+      "checks": [
+        "legacy access token works",
+        "existing access works while new token issuance is gated",
+        "legacy access token works after migration",
+        "legacy refresh token and five immediate rotations work with usable access tokens",
+        "synthetic account cleaned up"
+      ]
+    },
+    "migration_probe_production": {
+      "completed_at": "2026-09-10T20:44:21.531Z",
+      "checks": [
+        "legacy access token works",
+        "existing access works while new token issuance is gated",
+        "legacy access token works after migration",
+        "legacy refresh token and five immediate rotations work with usable access tokens",
+        "synthetic account cleaned up"
+      ]
+    },
+    "production_health": {
+      "service": "healthmcp",
+      "version": "1.0.0",
+      "status": "ok",
+      "push_configured": true,
+      "oauth_storage": "d1"
+    }
+  },
+  "migration": {
+    "transfer": {
+      "completed_at": "2026-09-10T20:43:12.336Z",
+      "local": false,
+      "source_records": 27,
+      "imported_or_revoked_records": 27,
+      "source_sha256": "a9bebfdd4458a29c3eed835459c9efd19246293389ae61dc1a4c74c387a053df"
+    },
+    "cleanup": {
+      "completed_at": "2026-09-10T20:48:55.118Z",
+      "local": false,
+      "removed_legacy_records": 25,
+      "verified_live_records": 25
+    },
+    "oauth_storage_mode": "d1",
+    "new_oauth_mutation_gate_active": false,
+    "apns_cache_and_encrypted_health_data_untouched": true,
+    "temporary_transfer_files_removed": true
+  },
+  "ios_delivery": {
+    "archive": "artifacts/HealthMCP-17-fixes.xcarchive",
+    "ipa": "artifacts/HealthMCP-17-device.ipa",
+    "sha256": "6d8ebb3bfc226b42f2dfec204740467a36ae824e1921e0eacaf3ee972186f644",
+    "signature_verification": "passed outside restricted sandbox",
+    "physical_install": "success",
+    "physical_launch_validated": false,
+    "reason": "Device disconnected after successful installation; final discovery still reports it unavailable. Reconnection request remains pending."
+  },
+  "app_store_submission": {
+    "changed": false,
+    "last_observed_version": "1.0.0",
+    "last_observed_build": 14,
+    "last_observed_state": "WAITING_FOR_REVIEW",
+    "build17_uploaded": false
+  },
+  "limitations": [
+    "Physical launch/sync validation remains pending because the iPhone disconnected after installation.",
+    "Historical backfill redesign remains deferred as requested.",
+    "The fix demonstrates and removes a stale-read failure mechanism; the precise historical Cloudflare cache state was not traced."
+  ],
+  "raw_evidence_directory": "artifacts/release-fixes-2026-09-10/"
+}

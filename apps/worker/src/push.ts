@@ -1,4 +1,5 @@
 import {collectGarbage,reconcileLegacyStorage} from './storage';
+import {cleanupOAuthState} from './oauth-storage';
 import {b64url,bytes,unbase64} from './security';
 import {type Env,type User,now} from './types';
 const tokens=new Map<string,{token:string;expires:number}>();
@@ -57,4 +58,5 @@ export async function scheduled(env:Env) {
   ]);
   await reconcileLegacyStorage(env);
   await collectGarbage(env);
+  await cleanupOAuthState(env);
 }
