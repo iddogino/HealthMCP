@@ -76,6 +76,9 @@ actor SyncStore {
         try execute("CREATE TABLE IF NOT EXISTS coverage_pending (series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(series,period))")
         try execute("CREATE TABLE IF NOT EXISTS recent_pending (series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(series,period))")
         try execute("CREATE TABLE IF NOT EXISTS recent_cursors (type TEXT PRIMARY KEY, value BLOB NOT NULL, complete INTEGER NOT NULL)")
+        try execute("CREATE TABLE IF NOT EXISTS fresh_windows (id TEXT PRIMARY KEY, since REAL NOT NULL, through REAL NOT NULL, scope TEXT NOT NULL, complete INTEGER NOT NULL DEFAULT 0)")
+        try execute("CREATE TABLE IF NOT EXISTS fresh_pending (window TEXT NOT NULL, series TEXT NOT NULL, period TEXT NOT NULL, PRIMARY KEY(window,series,period))")
+        try execute("CREATE TABLE IF NOT EXISTS fresh_cursors (window TEXT NOT NULL, type TEXT NOT NULL, value BLOB NOT NULL, complete INTEGER NOT NULL, PRIMARY KEY(window,type))")
         if try rows("SELECT 1 FROM sync_metadata WHERE key='incremental-v1'").isEmpty {
             try execute("BEGIN IMMEDIATE")
             do {
@@ -241,6 +244,9 @@ actor SyncStore {
             if let runID { try execute("INSERT OR REPLACE INTO chunk_visits(series,period,run_id) VALUES(?,?,?)", [chunk.series, chunk.period, runID]) }
             try execute("DELETE FROM coverage_pending WHERE series=? AND period=?", [chunk.series, chunk.period])
             try execute("DELETE FROM recent_pending WHERE series=? AND period=?", [chunk.series, chunk.period])
+            // A chunk is read in full. Its acknowledgement also satisfies any
+            // older catch-up windows waiting for that same bucket or record.
+            try execute("DELETE FROM fresh_pending WHERE series=? AND period=?", [chunk.series, chunk.period])
             try clearDirty(chunk)
             try execute("COMMIT")
         } catch { try? execute("ROLLBACK"); throw error }

@@ -28,6 +28,7 @@
 		8890768878EA4AB2490F935F /* SummaryReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F803D54692D1255D0461469 /* SummaryReader.swift */; };
 		88A171B0CDD34C5D2A5A381F /* SyncAvailabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7927A4E8D5AF1A1F66F0F968 /* SyncAvailabilityTests.swift */; };
 		88C74F38536A7992F35F5042 /* WorkoutReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB98D06AA712E6D6B961B563 /* WorkoutReader.swift */; };
+		9087FDA7BBF0DC7AEC9115EB /* FreshDataPriorityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CD15CD8AD1D6692970ACC1 /* FreshDataPriorityTests.swift */; };
 		98BBEE576B394BC6B6C3A1EB /* HealthMCPUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E192361A64FE945309752A1 /* HealthMCPUITests.swift */; };
 		9E2ADBF57118E5E3E91D7345 /* SyncAvailability.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1ABE71DCBD99C7E27DAC863 /* SyncAvailability.swift */; };
 		A88793C2C7F00E1995F55161 /* QuantityDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B66DEFF6DA8C9711F764A0 /* QuantityDefinitions.swift */; };
@@ -100,6 +101,7 @@
 		D1ABE71DCBD99C7E27DAC863 /* SyncAvailability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncAvailability.swift; sourceTree = "<group>"; };
 		D4F9E50D065A6AED09836FC6 /* BackgroundTasks.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = BackgroundTasks.framework; path = System/Library/Frameworks/BackgroundTasks.framework; sourceTree = SDKROOT; };
 		D6D06504A6353A44E899BFE6 /* AgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsView.swift; sourceTree = "<group>"; };
+		D8CD15CD8AD1D6692970ACC1 /* FreshDataPriorityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FreshDataPriorityTests.swift; sourceTree = "<group>"; };
 		ED256CFE62986B4547441AEC /* crypto-v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "crypto-v1.json"; sourceTree = "<group>"; };
 		EFC4F0966409E190F00A0AC9 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		F1B1BE0EAE9729ED39A1FA60 /* HealthQueryRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthQueryRunner.swift; sourceTree = "<group>"; };
@@ -219,6 +221,7 @@
 			isa = PBXGroup;
 			children = (
 				ED256CFE62986B4547441AEC /* crypto-v1.json */,
+				D8CD15CD8AD1D6692970ACC1 /* FreshDataPriorityTests.swift */,
 				21F4C52194C503667CD093B6 /* HealthMCPTests.swift */,
 				81AAF1862A626AF4CC6A9E98 /* IncrementalSyncTests.swift */,
 				5EEED6B2A64353516BA8846A /* ReleaseRecoveryTests.swift */,
@@ -401,6 +404,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9087FDA7BBF0DC7AEC9115EB /* FreshDataPriorityTests.swift in Sources */,
 				FFBA873FC7F29050D319C4A5 /* HealthMCPTests.swift in Sources */,
 				67E73DCB51B6FE23868FF049 /* IncrementalSyncTests.swift in Sources */,
 				49CC8CA97253194D59CD1C6B /* ReleaseRecoveryTests.swift in Sources */,
@@ -503,7 +507,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -564,7 +568,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = HL9SP7TJ3J;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

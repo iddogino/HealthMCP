@@ -32,13 +32,18 @@ extension SyncUploading {
 enum BackfillPlan {
     static func recentStart(now: Date) -> Date { HealthDates.calendar.startOfDay(for: now).addingTimeInterval(-6 * 86400) }
     static func recentChunks(definitions: [SeriesDefinition], now: Date) -> [DirtyChunk] {
+        chunks(definitions: definitions, since: recentStart(now: now), through: now)
+    }
+    static func chunks(definitions: [SeriesDefinition], since: Date, through: Date) -> [DirtyChunk] {
         var chunks = Set<DirtyChunk>()
-        for offset in 0..<7 {
-            let day = now.addingTimeInterval(-Double(offset) * 86400)
+        var day = HealthDates.calendar.startOfDay(for: through)
+        let start = HealthDates.calendar.startOfDay(for: since)
+        while day >= start {
             for series in ["daily_summary", "activity_rings"] { chunks.insert(DirtyChunk(series: series, period: HealthDates.month(day))) }
             for definition in definitions where definition.chunk != "record" {
                 chunks.insert(DirtyChunk(series: definition.id, period: definition.chunk == "month" ? HealthDates.month(day) : HealthDates.day(day)))
             }
+            day = day.addingTimeInterval(-86400)
         }
         return chunks.sorted { $0.id < $1.id }
     }
@@ -56,11 +61,18 @@ actor SyncEngine {
     private var lastUIUpdate = ContinuousClock.now
     private var lastSave = ContinuousClock.now
     private var lastCatalogUpdate = ContinuousClock.now
+    private var refreshRequested = false
+    private var lastFreshAttempt: Date?
+    private var currentTime: @Sendable () -> Date = { Date() }
     private let progress: @MainActor @Sendable (SyncRun) -> Void
     init(store: SyncStore, reader: any HealthSyncReading, client: any SyncUploading, key: String, run: SyncRun, progress: @escaping @MainActor @Sendable (SyncRun) -> Void) {
         self.store = store; self.reader = reader; self.client = client; self.key = key; self.run = run; self.progress = progress
     }
-    func sync(definitions: [SeriesDefinition], now: Date = Date()) async -> SyncRun {
+    func requestRecentRefresh() { refreshRequested = true }
+
+    func sync(definitions: [SeriesDefinition], now: Date = Date(), clock: (@Sendable () -> Date)? = nil) async -> SyncRun {
+        let started = ContinuousClock.now
+        currentTime = clock ?? { now.addingTimeInterval(Self.milliseconds(since: started) / 1000) }
         let grouped = Dictionary(grouping: definitions.filter { $0.sampleType != nil }, by: { $0.sampleType!.identifier })
         let priority = ["StepCount", "HeartRate", "SleepAnalysis", "ActiveEnergyBurned"]
         var queue = grouped.keys.sorted()
@@ -83,12 +95,14 @@ actor SyncEngine {
             let profile = try await reader.readProfile()
             run.uploadedBytes += try await client.upload(series: "profile", period: "single", plaintext: profile, key: key)
             try await store.recordUpload(DirtyChunk(series: "profile", period: "single"), count: 1, first: HealthDates.day(now), last: HealthDates.day(now))
+            try await refreshNewest(definitions: definitions, force: true)
             if let scan = recentScan {
                 run.phase = "recent"
                 for definition in definitions where definition.chunk == "record" && definition.kind != .route {
                     guard let type = definition.sampleType?.identifier else { continue }
                     var cursor = try await store.recentCursor(for: type)
                     while !cursor.complete {
+                        try await refreshNewest(definitions: definitions)
                         run.stage = "Checking recent \(definition.title.lowercased())"
                         try await publish(force: true)
                         let page = try await reader.readRecentRecordPage(definition: definition, since: scan.since, through: scan.through, anchor: cursor.anchor)
@@ -99,7 +113,9 @@ actor SyncEngine {
                         cursor = try await store.recentCursor(for: type)
                     }
                 }
-                while try await drainBatch(definitions: definitions, recentOnly: true) {
+                while true {
+                    try await refreshNewest(definitions: definitions)
+                    guard try await drainBatch(definitions: definitions, recentOnly: true) else { break }
                     try await flushCatalog()
                     try await publish()
                 }
@@ -108,13 +124,18 @@ actor SyncEngine {
                 run.phase = "streaming"
                 try await publish(force: true)
             }
+            // Resuming an old fixed-window scan cannot send us into history
+            // with that old timestamp. Catch up through the present first.
+            try await refreshNewest(definitions: definitions, force: true)
             // An upgrade's historical metadata must not hold up recent data.
             // Legacy blobs remain queryable while their exact bounds update.
-            try await flushCoverage()
+            try await flushCoverage(definitions: definitions)
+            try await refreshNewest(definitions: definitions)
             _ = try await drainBatch(definitions: definitions)
             try await flushCatalog(force: true)
             while !queue.isEmpty {
                 try Task.checkCancellation()
+                try await refreshNewest(definitions: definitions)
                 let type = queue.removeFirst(), entries = grouped[type]!
                 run.stage = "Reading \(entries[0].title) · uploads continue between pages"
                 try await publish(force: true)
@@ -136,6 +157,7 @@ actor SyncEngine {
                     addError("\(entries[0].title): \(error.localizedDescription)")
                     run.completedTypes = (run.completedTypes ?? 0) + 1
                 }
+                try await refreshNewest(definitions: definitions)
                 _ = try await drainBatch(definitions: definitions)
                 try await flushCatalog()
                 run.progress = 0.6 * Double(run.completedTypes ?? 0) / Double(max(1, run.totalTypes ?? 1))
@@ -143,7 +165,9 @@ actor SyncEngine {
                 if run.errors.count >= 20 { throw HealthMCPError.message("Several items need another attempt. Remaining work is saved.") }
             }
             run.phase = "uploading"
-            while try await drainBatch(definitions: definitions) {
+            while true {
+                try await refreshNewest(definitions: definitions)
+                guard try await drainBatch(definitions: definitions) else { break }
                 try Task.checkCancellation()
                 try await flushCatalog()
                 if run.errors.isEmpty { run.availability = try await store.extendAvailability(definitions: definitions) }
@@ -168,10 +192,11 @@ actor SyncEngine {
         try? await publish(force: true)
         return run
     }
-    private func drainBatch(definitions: [SeriesDefinition], recentOnly: Bool = false) async throws -> Bool {
+    private func drainBatch(definitions: [SeriesDefinition], recentOnly: Bool = false, freshWindow: String? = nil) async throws -> Bool {
         try Task.checkCancellation()
         let chunks: [DirtyChunk]
-        if recentOnly { chunks = try await store.nextRecentChunks(limit: 4, excluding: failedChunks) }
+        if let freshWindow { chunks = try await store.nextFreshChunks(window: freshWindow, limit: 4, excluding: failedChunks) }
+        else if recentOnly { chunks = try await store.nextRecentChunks(limit: 4, excluding: failedChunks) }
         else { chunks = try await store.nextDirty(limit: 4, excluding: failedChunks, notUploadedInRun: run.phase == "streaming" ? run.id : nil) }
         guard !chunks.isEmpty else { return false }
         run.stage = "Encrypting and uploading \(chunks.first!.series.replacingOccurrences(of: "_", with: " "))"
@@ -216,7 +241,42 @@ actor SyncEngine {
         try Task.checkCancellation()
         return true
     }
-    private func flushCoverage() async throws {
+    private func refreshNewest(definitions: [SeriesDefinition], force: Bool = false) async throws {
+        let previousPhase = run.phase, previousProgress = run.progress, previousStage = run.stage
+        defer { run.phase = previousPhase; run.progress = previousProgress; run.stage = previousStage }
+        var force = force
+        while true {
+            try Task.checkCancellation()
+            let now = currentTime()
+            let due = force || refreshRequested || (lastFreshAttempt.map { now.timeIntervalSince($0) >= 300 } ?? true)
+            if due { lastFreshAttempt = now; refreshRequested = false }; force = false
+            guard let window = try await store.prepareFreshWindow(definitions: definitions, through: now, enqueue: due) else { return }
+            run.phase = "recent"; run.progress = 0
+            var readPage = false
+            for definition in definitions where definition.chunk == "record" && definition.kind != .route {
+                guard let type = definition.sampleType?.identifier else { continue }
+                let cursor = try await store.freshCursor(window: window.id, type: type)
+                guard !cursor.complete else { continue }
+                run.stage = "Checking newest \(definition.title.lowercased())"
+                try await publish(force: true)
+                let page = try await reader.readRecentRecordPage(definition: definition, since: window.since, through: window.through, anchor: cursor.anchor)
+                try Task.checkCancellation()
+                try await store.stageFreshRecords(window: window.id, type: type, page: page)
+                readPage = true
+                break
+            }
+            let uploaded = try await drainBatch(definitions: definitions, freshWindow: window.id)
+            try await flushCatalog()
+            if readPage || uploaded { continue }
+            try await flushCatalog(force: true)
+            guard try await store.confirmFreshWindow(window, definitions: definitions) else {
+                throw HealthMCPError.message("Newest data needs another attempt. Sync will retry it before adding older history.")
+            }
+            run.availability = try await store.availability(for: definitions)
+            try await publish(force: true)
+        }
+    }
+    private func flushCoverage(definitions: [SeriesDefinition]) async throws {
         let total = try await store.pendingCoverageCount()
         guard total > 0 else { return }
         let previousPhase = run.phase, previousProgress = run.progress
@@ -225,6 +285,7 @@ actor SyncEngine {
         var completed = 0
         while true {
             try Task.checkCancellation()
+            try await refreshNewest(definitions: definitions)
             run.stage = "Updating saved date ranges · \(completed.formatted()) of \(total.formatted())"
             run.progress = Double(completed) / Double(total)
             try await publish(force: true)
@@ -248,9 +309,7 @@ actor SyncEngine {
         run.totalChunks = run.uploadedChunks + (try await store.dirtyCount())
         if force || lastSave.duration(to: .now) >= .seconds(1) {
             try await store.save(run); lastSave = .now
-            #if DEBUG
             SyncDiagnostics.progress(run)
-            #endif
         }
         if force || lastUIUpdate.duration(to: .now) >= .milliseconds(250) { await progress(run); lastUIUpdate = .now }
     }

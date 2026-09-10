@@ -49,6 +49,7 @@ struct PrivacyOperation: Codable, Sendable {
     var journal: SyncStore?
     let reader = HealthReader()
     private var syncTask: Task<Void, Never>?
+    private var activeEngine: SyncEngine?
     private var observerCompletions: [() -> Void] = []
     private var syncAgain = false
     private var bootstrapTask: Task<Void, Never>?
@@ -174,7 +175,12 @@ struct PrivacyOperation: Codable, Sendable {
     func startSync(trigger: String) {
         guard initialized, !isDemo, api?.userID.isEmpty == false else { return }
         guard pendingPrivacy == nil, !privacyExecuting else { return }
-        if syncTask != nil { if trigger != "App opened" { syncAgain = true }; return }
+        if syncTask != nil {
+            if trigger != "App opened" { syncAgain = true }
+            let engine = activeEngine
+            Task { await engine?.requestRecentRefresh() }
+            return
+        }
         currentRun = SyncRun(trigger: trigger)
         syncTask = Task { await runSync() }
     }
@@ -235,6 +241,7 @@ struct PrivacyOperation: Codable, Sendable {
                 self?.currentRun = run
                 if self?.pendingPrivacy == nil { self?.syncAvailability = run.availability }
             }
+            activeEngine = engine
             completed = await engine.sync(definitions: definitions)
         } catch {
             var failed = initial; failed.status = Task.isCancelled ? "paused" : "failed"
@@ -243,6 +250,7 @@ struct PrivacyOperation: Codable, Sendable {
             try? await journal.save(failed); completed = failed
         }
         liveStatus.cancel()
+        activeEngine = nil
         await liveStatus.value
         currentRun = completed
         if completed.status == "complete" { lastSyncedAt = Date() }
@@ -452,6 +460,11 @@ struct PrivacyOperation: Codable, Sendable {
             publishedDataRange = PublishedDataRange.fromCatalog([["series": "steps", "first_day": "2024-01-01", "last_day": "2026-09-09", "total_samples": 24836, "last_synced_at": Date().addingTimeInterval(-240).timeIntervalSince1970]], definitions: definitions)
         }
         if ProcessInfo.processInfo.arguments.contains("-ui-paused") { currentRun?.status = "paused"; currentRun?.stage = "Progress saved. Completed uploads are available to your agents." }
+        if ProcessInfo.processInfo.arguments.contains("-ui-catchup") {
+            currentRun?.phase = "recent"; currentRun?.stage = "Checking newest workouts"
+            syncAvailability?.refreshedAt = Date().addingTimeInterval(-12 * 3600)
+            publishedDataRange = PublishedDataRange.fromCatalog([["series": "steps", "first_day": "2025-01-01", "last_day": HealthDates.day(Date()), "total_samples": 24836]], definitions: definitions)
+        }
         if ProcessInfo.processInfo.arguments.contains("-ui-long-stage") { currentRun?.stage = "Reading Dietary Polyunsaturated Fat · uploads continue between pages while older health history is indexed" }
         currentRun?.availability = syncAvailability
     }

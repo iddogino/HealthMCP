@@ -37,6 +37,16 @@ final class HealthMCPUITests:XCTestCase {
         XCTAssertTrue(app.staticTexts["17 of 53 data types scanned for older changes"].exists)
         XCTAssertTrue(app.staticTexts["Encrypting and uploading"].exists)
     }
+    func testFreshCatchupKeepsOlderUploadedHistoryVisible() {
+        let app = app(["-ui-syncing", "-ui-catchup"])
+        XCTAssertTrue(app.staticTexts["availability-ready"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["availability-since"].exists)
+        XCTAssertTrue(app.staticTexts["availability-uploaded-history"].label.contains("2025") || app.staticTexts["availability-uploaded-history"].label.contains("2024"))
+        XCTAssertTrue(app.staticTexts["Updating your newest data first. Older history resumes afterward."].exists)
+        for _ in 0..<3 where !app.staticTexts["Syncing recent data"].isHittable { app.swipeUp() }
+        XCTAssertTrue(app.staticTexts["Syncing recent data"].exists)
+        XCTAssertFalse(app.staticTexts["Adding older history"].exists)
+    }
     func testReadyRangeRemainsVisibleWhenPausedAndOpensAgents() {
         let app=app(["-ui-syncing", "-ui-paused"])
         XCTAssertTrue(app.staticTexts["availability-ready"].waitForExistence(timeout:10))

@@ -10,7 +10,7 @@ struct OverviewView: View {
                     HStack { BrandMark(); Text("Health MCP").font(.headline); Spacer(); Image(systemName: "lock.shield.fill").foregroundStyle(Brand.accent) }.padding(.top, 14)
                     VStack(alignment: .leading, spacing: 8) { Eyebrow(text: "Your private health bridge"); Text("Connect your agents to Apple Health").font(.system(size: 36, weight: .semibold, design: .rounded)).tracking(-1) }.padding(.top, 12)
                     if let availability = model.syncAvailability, availability.hasSamples {
-                        SyncAvailabilityCard(availability: availability, isSyncing: model.isSyncing, hasConnections: !model.connections.isEmpty) { model.selectedTab = 1 }
+                        SyncAvailabilityCard(availability: availability, isSyncing: model.isSyncing, isRefreshingRecent: model.isSyncing && model.currentRun?.phase == "recent", publishedRange: model.publishedDataRange, hasConnections: !model.connections.isEmpty) { model.selectedTab = 1 }
                     } else if let range = model.publishedDataRange {
                         PublishedDataRangeCard(range: range, hasConnections: !model.connections.isEmpty) { model.selectedTab = 1 }
                     } else if model.isSyncing {
@@ -96,6 +96,8 @@ struct SyncAvailabilityCard: View {
     @Environment(\.locale) private var locale
     let availability: SyncAvailability
     let isSyncing: Bool
+    let isRefreshingRecent: Bool
+    let publishedRange: PublishedDataRange?
     let hasConnections: Bool
     let openAgents: () -> Void
 
@@ -114,7 +116,14 @@ struct SyncAvailabilityCard: View {
                         VStack(alignment: .leading, spacing: 4) { Text("Last synced data").foregroundStyle(Brand.secondary); Text(availability.freshnessLabel(at: context.date)).foregroundStyle(Brand.accent) }
                     }.font(.subheadline).accessibilityElement(children: .combine).accessibilityIdentifier("availability-freshness")
                 }
-                Text(availability.historyComplete ? "Your shared data is ready to use." : isSyncing ? "Start using your agent now. Older history is still syncing." : "Start using your agent now. Resume sync to add older history.")
+                if let range = publishedRange, range.first < availability.since {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Uploaded history · partial").font(.caption).foregroundStyle(Brand.secondary)
+                        Text(range.rangeLabel(at: Date(), in: timeZone, locale: locale)).font(.subheadline.weight(.medium))
+                            .accessibilityIdentifier("availability-uploaded-history")
+                    }
+                }
+                Text(isRefreshingRecent ? "Updating your newest data first. Older history resumes afterward." : availability.historyComplete ? "Your shared data is ready to use." : isSyncing ? "Start using your agent now. Older history is still syncing." : "Start using your agent now. Resume sync to add older history.")
                     .font(.subheadline).foregroundStyle(Brand.secondary).fixedSize(horizontal: false, vertical: true)
                 Button(action: openAgents) {
                     HStack { Text(hasConnections ? "Open agents" : "Connect an agent"); Spacer(); Image(systemName: "arrow.up.right") }
