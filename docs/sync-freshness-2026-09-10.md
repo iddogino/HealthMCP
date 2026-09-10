@@ -25,9 +25,12 @@ HealthKit reads can be unavailable while the phone is locked. iOS also decides w
 - Regressions cover a 15-hour interrupted checkpoint, newest-window priority, durable record-cursor resumption, foreground preemption, five-minute refresh during backfill, failed catalog publication, monotonic timestamps, and privacy cleanup.
 - The new card was visually inspected on the simulator. An initial unsigned UI-test attempt could not access Keychain; rerunning with simulator signing resolved the test setup issue.
 - Release archive and ad hoc export succeeded for 1.0.0 (15); signature verification passed. Export used the existing ASC API credential after the cached Xcode account session failed.
-- Physical installation and fresh-data verification are pending reconnection: the iPhone became unavailable before installation.
+- Physical installation succeeded after reconnection; the installed version was independently read back as **1.0.0 (15)**. The existing account and backfill journal were retained.
+- On the physical iPhone, the first observed phase was `recent`, with 17 chunks processed and zero historical types/samples scanned. The confirmed freshness checkpoint advanced from the previous evening to **10:09 AM local time**, while historical scanning was still zero. A later snapshot confirmed freshness through **10:11 AM**, followed by `streaming` with 8 of 53 historical types scanned and no reported errors. Historical backfill remains in progress.
 - Build 14 remains the submitted App Review build. Build 15 has not been uploaded or substituted into that submission.
 
 Local evidence: `artifacts/device-sync-diagnosis-2026-09-10/`, `artifacts/fresh-priority-final-tests.xcresult`, `artifacts/fresh-priority-ui-tests.xcresult`, `artifacts/fresh-priority-ios18-tests.xcresult`.
+
+Physical ordering evidence: `physical-validation.json`, `installed15.json`, `device-install-reconnected.json`, `device-launch15.json`, `phone15-progress-start.json`, `phone15-progress-after.json`, and `phone15-progress-final.json` in the local evidence directory.
 
 Ad hoc IPA SHA-256: `009f3ed8b5507a2ded0e7398908ab4c6e6d9c1846676f185a907285b9e2f09c7`.
