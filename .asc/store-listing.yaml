@@ -1,0 +1,134 @@
+# Rebuild from the repository root with scripts/render-store-listing.py.
+# All screen assets are unmodified captures of build 13 with fictional demo data.
+project:
+  name: Health MCP — App Store V1
+  device: iPhone 17 Pro Max - Deep Blue - Portrait
+  output_dir: ../artifacts/appstore-listing-2026-09-09/framed/en-US
+  output_size: [1320, 2868]
+defaults:
+  background: &navy
+    type: radial
+    colors: ['#234B50', '#08131E']
+    center: ['50%', '68%']
+    radius: '75%'
+screenshots:
+  01-your-health-your-agents:
+    content:
+      - &brand
+        type: text
+        content: H E A L T H   M C P
+        position: ['50%', '130']
+        font_family: /System/Library/Fonts/Supplemental/Arial Bold.ttf
+        size: 32
+        color: '#71E9D5'
+      - &headline
+        type: text
+        content: Apple Health.
+        position: ['50%', '300']
+        font_family: /System/Library/Fonts/Supplemental/Arial Bold.ttf
+        size: 116
+        color: '#F6F7F1'
+        max_width: 1160
+        max_lines: 1
+      - <<: *headline
+        content: For your agents.
+        position: ['50%', '435']
+        color: '#71E9D5'
+      - &subtitle
+        type: text
+        content: Encrypted sync. Connections you approve.
+        position: ['50%', '606']
+        font_family: /System/Library/Fonts/Supplemental/Arial.ttf
+        size: 43
+        color: '#BDCCC9'
+        max_width: 1160
+        max_lines: 2
+      - &phone
+        type: image
+        asset: ../artifacts/appstore-listing-2026-09-09/raw/01-overview.png
+        frame: true
+        position: ['50%', '1776']
+        scale: 0.66
+      - &footer
+        type: text
+        content: For assistants that support local MCP servers
+        position: ['50%', '2796']
+        font_family: /System/Library/Fonts/Supplemental/Arial.ttf
+        size: 30
+        color: '#A7BAB9'
+        max_width: 1180
+        max_lines: 1
+  02-recent-data-first:
+    background: &mint
+      type: linear
+      colors: ['#F2F6EF', '#D5EEE2']
+      direction: 180
+    content:
+      - <<: *brand
+        color: '#296159'
+      - <<: *headline
+        content: Recent data first.
+        color: '#092B30'
+      - <<: *headline
+        content: Start using it now.
+        position: ['50%', '435']
+        color: '#267F70'
+      - <<: *subtitle
+        content: See what’s ready while older history syncs.
+        color: '#456960'
+      - <<: *phone
+        asset: ../artifacts/appstore-listing-2026-09-09/raw/02-recent-first.png
+      - <<: *footer
+        content: Live progress · Date coverage · Sync freshness
+        color: '#41645C'
+  03-choose-what-you-share:
+    content:
+      - <<: *brand
+      - <<: *headline
+        content: Your health data.
+      - <<: *headline
+        content: Your choice.
+        position: ['50%', '435']
+        color: '#71E9D5'
+      - <<: *subtitle
+        content: Choose your Apple Health permissions.
+      - <<: *phone
+        asset: ../artifacts/appstore-listing-2026-09-09/raw/03-sharing.png
+      - <<: *footer
+        content: Optional groups and precise routes start off
+  04-approve-every-connection:
+    background: *mint
+    content:
+      - <<: *brand
+        color: '#296159'
+      - <<: *headline
+        content: Every connection.
+        color: '#092B30'
+      - <<: *headline
+        content: Your permission.
+        position: ['50%', '435']
+        color: '#267F70'
+      - <<: *subtitle
+        content: Review each agent before sharing access.
+        color: '#456960'
+      - <<: *phone
+        asset: ../artifacts/appstore-listing-2026-09-09/raw/04-approve-agent.png
+      - <<: *footer
+        content: Revoke future access from the app
+        color: '#41645C'
+  05-your-key-stays-yours:
+    content:
+      - <<: *brand
+      - <<: *headline
+        content: Encrypted on iPhone.
+        size: 106
+      - <<: *headline
+        content: Opened by you.
+        position: ['50%', '435']
+        color: '#71E9D5'
+      - <<: *subtitle
+        content: Your key. Your computer. Your trusted client.
+      - <<: *phone
+        asset: ../artifacts/appstore-listing-2026-09-09/raw/05-private-client.png
+      - <<: *footer
+        content: The cloud service never receives your key

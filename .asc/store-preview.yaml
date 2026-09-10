@@ -1,0 +1,68 @@
+project:
+  name: Health MCP — Screenshot preview
+  device: iPhone 17 Pro Max - Deep Blue - Portrait
+  output_dir: ../artifacts/appstore-listing-2026-09-09/preview-render
+  output_size: [1600, 860]
+defaults:
+  background:
+    type: solid
+    colors: ['#EDF3EF']
+screenshots:
+  preview:
+    frame: false
+    content:
+      - type: text
+        content: Health MCP · App Store screenshots
+        font_family: /System/Library/Fonts/Supplemental/Arial Bold.ttf
+        size: 45
+        color: '#142F35'
+        position: ['800', '56']
+      - type: text
+        content: Real app screens · Fictional data · English (US)
+        font_family: /System/Library/Fonts/Supplemental/Arial.ttf
+        size: 26
+        color: '#51726B'
+        position: ['800', '110']
+      - &image
+        type: image
+        asset: ../artifacts/appstore-listing-2026-09-09/framed/en-US/01-your-health-your-agents.png
+        frame: false
+        scale: 0.2
+        position: ['188', '443']
+      - <<: *image
+        asset: ../artifacts/appstore-listing-2026-09-09/framed/en-US/02-recent-data-first.png
+        position: ['494', '443']
+      - <<: *image
+        asset: ../artifacts/appstore-listing-2026-09-09/framed/en-US/03-choose-what-you-share.png
+        position: ['800', '443']
+      - <<: *image
+        asset: ../artifacts/appstore-listing-2026-09-09/framed/en-US/04-approve-every-connection.png
+        position: ['1106', '443']
+      - <<: *image
+        asset: ../artifacts/appstore-listing-2026-09-09/framed/en-US/05-your-key-stays-yours.png
+        position: ['1412', '443']
+      - &label
+        type: text
+        content: 01 · Connect
+        font_family: /System/Library/Fonts/Supplemental/Arial Bold.ttf
+        size: 23
+        color: '#21453F'
+        position: ['188', '760']
+      - <<: *label
+        content: 02 · Recent data
+        position: ['494', '760']
+      - <<: *label
+        content: 03 · Sharing
+        position: ['800', '760']
+      - <<: *label
+        content: 04 · Consent
+        position: ['1106', '760']
+      - <<: *label
+        content: 05 · Encryption
+        position: ['1412', '760']
+      - type: text
+        content: Five 1320 × 2868 PNGs · iPhone 6.9-inch · No transparency
+        font_family: /System/Library/Fonts/Supplemental/Arial.ttf
+        size: 25
+        color: '#51726B'
+        position: ['800', '817']

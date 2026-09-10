@@ -7,16 +7,16 @@
     "simulator_udid": "A5EDB143-E78A-4DC2-911E-95F6BDBBA6EE"
   },
   "paths": {
-    "raw_dir": "artifacts/store-screenshots/en-US",
-    "framed_dir": "artifacts/store-screenshots/en-US"
+    "raw_dir": "artifacts/appstore-listing-2026-09-09/raw",
+    "framed_dir": "artifacts/appstore-listing-2026-09-09/framed/en-US"
   },
   "pipeline": {
-    "frame_enabled": false,
+    "frame_enabled": true,
     "upload_enabled": false
   },
   "upload": {
     "version_localization_id": "8172bf40-184b-48cc-90e0-d9e38be214b8",
     "device_type": "IPHONE_69",
-    "source_dir": "artifacts/store-screenshots/en-US"
+    "source_dir": "artifacts/appstore-listing-2026-09-09/framed/en-US"
   }
 }
