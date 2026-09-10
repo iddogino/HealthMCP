@@ -1,5 +1,7 @@
 # App Store submission preparation — September 9, 2026
 
+**Finalized September 10:** Version 1.0.0 (14) is now **Waiting for Review**, with Free pricing, the No medical-device declaration and published App Privacy. Release remains manual. See the [completed submission record](appstore-submission-2026-09-10.md). The preparation and pending-approval notes below are historical and were resolved during that finalization.
+
 **September 10 build update:** [Build 14](evidence/appstore-build-14-2026-09-10.json) is uploaded, processed (`VALID`, `APP_STORE_ELIGIBLE`) and attached to the existing version 1.0.0 draft. It includes the [layered icon](app-icon.md) and corrects build 13's unintended iPad support to `UIDeviceFamily = [1]`. Signed archive/IPA checks and strict staging validation passed. The version remains unsubmitted with manual release; the prior privacy, price and medical-device approvals remain pending.
 
 **The version is staged and remains unsubmitted. Three owner approvals are pending before the ASC setup can be called complete:** publication of App Privacy, the Free V1 price, and the medical-device declaration. No review submission exists; release remains manual.

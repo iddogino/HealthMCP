@@ -1,0 +1,28 @@
+{
+  "checkedAtUTC": "2026-09-10T16:21:18.312171+00:00",
+  "reason": "Automatic approval review flagged an apparent conflict between optional precise-location collection and the policy wording.",
+  "verifiedBehavior": [
+    "Workout GPS routes default off. Settings enables them and HealthKit route authorization is requested.",
+    "WorkoutReader.swift includes precise latitude and longitude in the workout payload only when routesEnabled is true.",
+    "APIClient.swift encrypts the complete payload before PUT upload.",
+    "storage.ts stores the encrypted envelope in private R2 and indexes it under the authenticated account.",
+    "The iOS privacy manifest already declares precise location for app functionality, linked to user, without tracking."
+  ],
+  "policyClarification": "The published policy explicitly distinguishes enabled GPS/reproductive records retained in encrypted account files from the separate unencrypted catalog, which contains no precise coordinates.",
+  "policyURL": "https://healthmcp.cc/privacy",
+  "policyLiveTextVerified": true,
+  "cloudflareVersion": "f1f8b89b-3551-4aa5-9195-81e9d4dea6bd",
+  "siteTypecheckPassed": true,
+  "siteBuildPassed": true,
+  "appleGuidanceURL": "https://developer.apple.com/app-store/app-privacy-details/",
+  "appleGuidanceReviewed": "The optional disclosure and opt-in sections require considering ongoing data collection after permission, rather than omitting a type solely because its feature defaults off.",
+  "privacyLabelChanged": false,
+  "sourceSHA256": {
+    "apps/ios/HealthMCP/Health/WorkoutReader.swift": "5bf738c4b01b1022da58c7b9ef56d0d52a802538defeb95861e3eeb1581cf6f7",
+    "apps/ios/HealthMCP/Core/APIClient.swift": "269a7bbcdc6283322c10997b74011219a99dae548c95b21bc9bb292f2adf6167",
+    "apps/ios/HealthMCP/Core/AppModel.swift": "53bf3ac534e4b1e19fd6f7f019e80f0cfab9d92057772f752c972e6e33e98ac0",
+    "apps/ios/HealthMCP/PrivacyInfo.xcprivacy": "ae4fcdacbe1f0d520359fdca4b470c37367f56a861f6b7646cdb6f87f93bda3a",
+    "apps/worker/src/storage.ts": "508f3e2ce2bc18dfc52919d2f4487b76befc13600b087cc60db3e6a9b25aec4b",
+    "apps/site/app/privacy/page.tsx": "c10fd41e05bdb115404296e9db2332eb8c6221c20bfcbb5d97ffb3cad23e92d0"
+  }
+}

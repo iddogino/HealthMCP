@@ -1,0 +1,71 @@
+{
+  "checkedAtUTC": "2026-09-10T16:25:59.404998+00:00",
+  "appId": "6809625249",
+  "appName": "Health MCP: Private Sync",
+  "version": "1.0.0",
+  "buildNumber": "14",
+  "buildId": "9db5eadd-b05c-4d65-8f9b-c4d83de8214a",
+  "versionId": "5806847e-2cd2-47c1-a26f-be83e82453f4",
+  "reviewSubmissionId": "d2b17e81-c272-4e1b-bb33-fd4a18217344",
+  "reviewState": "WAITING_FOR_REVIEW",
+  "versionState": "WAITING_FOR_REVIEW",
+  "submittedDate": "2026-09-10T16:23:52.833Z",
+  "submitted": true,
+  "releaseType": "MANUAL",
+  "released": false,
+  "pricing": {
+    "isFree": true,
+    "territoryCount": 175,
+    "allCurrentPricesZero": true
+  },
+  "availability": {
+    "territoryCount": 175,
+    "allEnabled": true,
+    "availableInNewTerritories": true
+  },
+  "medicalDeviceDeclaration": {
+    "declared": false,
+    "ownerConfirmed": true,
+    "savedInASC": true,
+    "visibleConfirmation": "This app has been declared not a regulated medical device in any country or region."
+  },
+  "privacy": {
+    "published": true,
+    "browserConfirmation": "Published a few seconds ago by Iddo Gino",
+    "policyURL": "https://healthmcp.cc/privacy",
+    "categories": [
+      "Health",
+      "Fitness",
+      "Precise Location",
+      "Sensitive Info",
+      "User ID",
+      "Device ID",
+      "Other Diagnostic Data"
+    ],
+    "purpose": "App Functionality",
+    "linked": true,
+    "tracking": false,
+    "publicationRiskResolved": "Optional GPS uploads and encrypted account storage were verified against code, and the policy wording was clarified and verified live before publication."
+  },
+  "screenshots": {
+    "count": 5,
+    "allComplete": true,
+    "checksumsMatchPreparedListing": true
+  },
+  "apiValidation": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 2,
+    "blocking": 0
+  },
+  "site": {
+    "cloudflareVersion": "f1f8b89b-3551-4aa5-9195-81e9d4dea6bd",
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "livePolicyVerified": true
+  },
+  "submissionRecovery": "The high-level CLI created the packet and item, then failed its target-version relationship check. Separate API reads confirmed the exact version and build; the existing packet was submitted successfully with submissions-submit. No duplicate packet was created.",
+  "iOSBinaryChangedThisTurn": false,
+  "nativeOrBackendTestsRerun": false,
+  "artifactsDirectory": "artifacts/asc-submission-2026-09-10"
+}

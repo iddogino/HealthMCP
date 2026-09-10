@@ -39,6 +39,6 @@ Version **1.0.0 (14)** was archived, exported, uploaded and processed successful
 
 The signed IPA was checked for `UIDeviceFamily = [1]`, minimum iOS 18.0, the compiled Spark vector/group, production push and HealthKit entitlements, and its bundled private client. Archive and IPA signature verification passed. The icon's existing iOS 26.3 and iOS 18.1 runtime checks remain the visual/compatibility evidence; native and backend test suites were not rerun for this icon and build-number update.
 
-Upload and staging results: [build 14 evidence](evidence/appstore-build-14-2026-09-10.json). App Privacy publication, pricing and the medical-device declaration still await the existing owner approvals.
+Upload and staging results: [build 14 evidence](evidence/appstore-build-14-2026-09-10.json). The later [September 10 submission](appstore-submission-2026-09-10.md) finalized App Privacy, Free pricing and the No medical-device declaration. Build 14 is now Waiting for Review, with manual release after approval.
 
 Machine-readable results: [icon validation](evidence/app-icon-2026-09-10.json).
