@@ -1,0 +1,70 @@
+{
+  "checkedAtUTC": "2026-09-10T16:02:51.562577+00:00",
+  "appId": "6809625249",
+  "versionId": "5806847e-2cd2-47c1-a26f-be83e82453f4",
+  "version": "1.0.0",
+  "buildNumber": "14",
+  "buildId": "9db5eadd-b05c-4d65-8f9b-c4d83de8214a",
+  "sourceBaseCommit": "a29286249497f0077fa6914d66a5e25b8a6fdf9c",
+  "sourceChangesAfterBaseCommit": [
+    "CURRENT_PROJECT_VERSION bumped from 13 to 14; XcodeGen project regenerated"
+  ],
+  "changesFromBuild13": [
+    "Layered Icon Composer AppIcon.icon with native background and transparent Spark.svg foreground",
+    "Explicit iPhone-only target configuration"
+  ],
+  "archiveSucceeded": true,
+  "exportSucceeded": true,
+  "archiveSignatureVerified": true,
+  "ipaSignatureVerified": true,
+  "ipa": {
+    "ipa": "artifacts/HealthMCP-14.ipa",
+    "sha256": "ec10efb0411246b3c37bb064dce2978658da2d9819f32c86225dc19f84fac5b6",
+    "bytes": 2926211,
+    "bundleId": "cc.healthmcp.app",
+    "version": "1.0.0",
+    "build": "14",
+    "deviceFamily": [
+      1
+    ],
+    "minimumOSVersion": "18.0",
+    "layeredAssetCatalogMatchesArchive": true
+  },
+  "distributionEntitlements": {
+    "application-identifier": "HL9SP7TJ3J.cc.healthmcp.app",
+    "aps-environment": "production",
+    "com.apple.developer.healthkit": true,
+    "get-task-allow": false
+  },
+  "compiledSparkVector": true,
+  "compiledIconGroup": true,
+  "bundledPrivateClientSHA256": "2d506563ffd1d34a6b8b9b43bbf830221c63156b8f668ed3a9b849638190a0ae",
+  "bundledPrivateClientMatchesSource": true,
+  "buildWarnings": [
+    "AppIntents metadata extraction skipped because the app has no AppIntents.framework dependency"
+  ],
+  "uploadedToASC": true,
+  "processingState": "VALID",
+  "buildAudienceType": "APP_STORE_ELIGIBLE",
+  "stagingStatus": "ok",
+  "attachedToVersion": true,
+  "state": "PREPARE_FOR_SUBMISSION",
+  "releaseType": "MANUAL",
+  "reviewSubmissionCount": 0,
+  "submittedForReview": false,
+  "apiValidation": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 2,
+    "blocking": 0
+  },
+  "metadataInSync": true,
+  "pendingOwnerApprovalsUnchanged": [
+    "privacy-publication-approval",
+    "free-price-approval",
+    "medical-device-declaration-approval"
+  ],
+  "iconRuntimeValidation": "docs/evidence/app-icon-2026-09-10.json",
+  "nativeOrBackendTestsRerun": false,
+  "artifactsDirectory": "artifacts/asc-build-14-2026-09-10"
+}

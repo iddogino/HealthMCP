@@ -1,6 +1,6 @@
 # App Store submission preparation — September 9, 2026
 
-**September 10 source update:** The [layered icon change](app-icon.md) also found that uploaded build 13 advertises iPad support (`UIDeviceFamily = [1,2]`), despite the intended iPhone-only scope stated below. The generated app target is corrected to `[1]` and validated locally. Replace build 13 with a newer upload containing this correction and the `.icon` asset before final submission preparation; the prior privacy, price and medical-device approvals also remain pending.
+**September 10 build update:** [Build 14](evidence/appstore-build-14-2026-09-10.json) is uploaded, processed (`VALID`, `APP_STORE_ELIGIBLE`) and attached to the existing version 1.0.0 draft. It includes the [layered icon](app-icon.md) and corrects build 13's unintended iPad support to `UIDeviceFamily = [1]`. Signed archive/IPA checks and strict staging validation passed. The version remains unsubmitted with manual release; the prior privacy, price and medical-device approvals remain pending.
 
 **The version is staged and remains unsubmitted. Three owner approvals are pending before the ASC setup can be called complete:** publication of App Privacy, the Free V1 price, and the medical-device declaration. No review submission exists; release remains manual.
 
@@ -11,7 +11,7 @@
 | Item | Saved state |
 | --- | --- |
 | App and version | Health MCP: Private Sync, `6809625249`, version 1.0.0, `PREPARE_FOR_SUBMISSION` |
-| Attached build | 13, `83c7d5c4-0145-4d2b-addf-9ae37a315691`, `VALID`, `APP_STORE_ELIGIBLE`, minimum iOS 18 |
+| Attached build | 14, `9db5eadd-b05c-4d65-8f9b-c4d83de8214a`, `VALID`, `APP_STORE_ELIGIBLE`, minimum iOS 18, iPhone only |
 | Listing | English (US) description and promotional text updated; remote MCP and optional desktop connector are distinguished accurately |
 | Screenshots | Five 1320 × 2868 screenshots replace the previous three; every asset is `COMPLETE`, with matching server checksum and size |
 | Review details | Iddo Gino, support@healthmcp.cc, owner-provided private phone, no sign-in required, complete setup notes |
@@ -54,11 +54,11 @@ The binary's privacy manifest currently lists Health, Fitness, Precise Location 
 
 ## Validation and limits
 
-`asc release stage --strict-validate` completed successfully after an inspected dry run. It reused the version, confirmed the metadata was already in sync, retained build 13, and stopped before review submission. `asc validate --strict` reports **0 errors, 0 warnings and 2 informational notices**: manual release and App Privacy publication not verifiable through the public API.
+`asc release stage --strict-validate` completed successfully after an inspected dry run. The September 9 preparation retained build 13; the September 10 follow-up attached build 14. Both reused the version, confirmed the metadata was already in sync and stopped before review submission. The latest strict staging validation reports **0 errors, 0 warnings and 2 informational notices**: manual release and App Privacy publication not verifiable through the public API. A separate readback confirmed build 14 is attached, release remains manual, and no review submissions exist.
 
 The browser exposes required setup that this API report does not catch: no current download price and an unanswered medical-device declaration, alongside the unpublished privacy responses. These remain blockers in this preparation record despite the clean API report. Apple documents the declaration requirement for Health & Fitness apps in the selected regions. [Medical-device status declaration](https://developer.apple.com/help/app-store-connect/manage-app-information/declare-regulated-medical-device-status).
 
-Site type checking and the production site build/deployment passed. Cloudflare site version: `af520516-2f57-4160-bbe8-279454650886`. No iOS code, backend behavior or app binary changed in this preparation, so the previous native/backend test results were not rerun.
+Site type checking and the production site build/deployment passed during the September 9 preparation. Cloudflare site version: `af520516-2f57-4160-bbe8-279454650886`. The September 10 follow-up rebuilt the app for the icon and device-family changes; it did not change app logic or backend behavior. The previous native/backend test results were not rerun. Icon compatibility checks, signed-package verification and Apple's successful processing are recorded in the build 14 evidence.
 
 The earlier [readiness assessment](appstore-readiness-2026-09-09.md) still governs product and policy acceptance: full physical-device backfill/background validation, actual named-assistant acceptance, accessibility/operational checks, HealthKit/AI downstream use, and seller eligibility have no new completion evidence here. Active account agreements and a saved non-trader declaration do not establish legal-entity eligibility or resolve those policy questions. Worldwide selection likewise does not establish any region-specific regulatory eligibility.
 

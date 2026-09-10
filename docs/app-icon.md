@@ -31,6 +31,14 @@ Apple's renderer is bundled at `/Applications/Xcode.app/Contents/Applications/Ic
 - Exported and visually checked Default, Dark, TintedDark and ClearLight with Apple's Icon Composer renderer.
 - Confirmed `MinimumOSVersion = 18.0` and `UIDeviceFamily = [1]` in the final built app.
 
-The build check exposed XcodeGen's target-level `1,2` default overriding the project's intended iPhone-only setting. The app target now sets `TARGETED_DEVICE_FAMILY = 1` explicitly in both Debug and Release. The already-uploaded build 13 still advertises `[1,2]`; a new upload is required for both this correction and the layered icon. No build was uploaded or submitted during this change.
+The build check exposed XcodeGen's target-level `1,2` default overriding the project's intended iPhone-only setting. The app target now sets `TARGETED_DEVICE_FAMILY = 1` explicitly in both Debug and Release. Build 13 advertised `[1,2]`; build 14 contains the correction and the layered icon.
+
+## App Store Connect upload — September 10, 2026
+
+Version **1.0.0 (14)** was archived, exported, uploaded and processed successfully. Apple reports `VALID` and `APP_STORE_ELIGIBLE`. Build 14 is attached to the existing version 1.0.0 draft, which remains `PREPARE_FOR_SUBMISSION` with manual release and no review submission.
+
+The signed IPA was checked for `UIDeviceFamily = [1]`, minimum iOS 18.0, the compiled Spark vector/group, production push and HealthKit entitlements, and its bundled private client. Archive and IPA signature verification passed. The icon's existing iOS 26.3 and iOS 18.1 runtime checks remain the visual/compatibility evidence; native and backend test suites were not rerun for this icon and build-number update.
+
+Upload and staging results: [build 14 evidence](evidence/appstore-build-14-2026-09-10.json). App Privacy publication, pricing and the medical-device declaration still await the existing owner approvals.
 
 Machine-readable results: [icon validation](evidence/app-icon-2026-09-10.json).
