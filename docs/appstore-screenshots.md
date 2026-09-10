@@ -1,6 +1,6 @@
 # App Store screenshot artwork
 
-Five English (US) screenshots are prepared for Health MCP 1.0.0 (13). Use the PNGs under `artifacts/appstore-listing-2026-09-09/framed/en-US/` for the 6.9-inch iPhone set. `preview.png` is a contact sheet for review, not an upload asset. The project targets iPhone only.
+Five English (US) screenshots are uploaded to the Health MCP 1.0.0 (13) draft. The PNGs under `artifacts/appstore-listing-2026-09-09/framed/en-US/` are the 6.9-inch iPhone set. `preview.png` is a contact sheet for review, not an upload asset. The project targets iPhone only.
 
 The images retain the app's actual UI and use fictional simulator fixtures. The wrappers add headlines, background colors, and a matching iPhone frame. The captions avoid diagnosis, guaranteed background sync, and unsupported assistant compatibility claims.
 
@@ -37,4 +37,6 @@ Simulator: iPhone 17 Pro Max, iOS 26.3, 1320 × 2868. App build: 13, Debug, usin
 
 Sources live under `artifacts/appstore-listing-2026-09-09/raw/`. Full-resolution images were captured with `simctl`; XcodeBuildMCP's optimized screenshots were too small for upload. Simulator gestures used the screenshot skill's AXe tools. Matching copies under `review-raw/en-US/` enable the asc side-by-side review.
 
-The existing App Store localization is `8172bf40-184b-48cc-90e0-d9e38be214b8`. It still contains the previous three images; these new images have not been uploaded. When replacing them, inspect current order and count first so the final listing contains the intended five-image sequence instead of appending duplicate concepts.
+The App Store localization is `8172bf40-184b-48cc-90e0-d9e38be214b8`. On September 9, 2026, the previous three images were replaced with this five-image sequence in set `be6c7386-d687-4657-ade5-920b71d38de2`. All five have delivery state `COMPLETE`; the server checksums and file sizes match the local PNGs. App Store Connect displays five screenshots in the expected order. No App Review submission was created.
+
+Upload and readback evidence is under `artifacts/asc-submission-prep/`, including `screenshots-verified.json`. The screenshot ZIP and its manifest now record the completed upload. See [submission preparation](appstore-submission-prep-2026-09-09.md) for the remaining draft setup.

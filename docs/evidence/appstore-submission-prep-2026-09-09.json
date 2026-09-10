@@ -1,0 +1,148 @@
+{
+  "checkedAtUTC": "2026-09-10T03:41:28.861659+00:00",
+  "appId": "6809625249",
+  "versionId": "5806847e-2cd2-47c1-a26f-be83e82453f4",
+  "version": "1.0.0",
+  "buildNumber": "13",
+  "buildId": "83c7d5c4-0145-4d2b-addf-9ae37a315691",
+  "state": "PREPARE_FOR_SUBMISSION",
+  "releaseType": "MANUAL",
+  "reviewSubmissionCount": 0,
+  "submitted": false,
+  "stagingStatus": "ok",
+  "apiValidation": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 2,
+    "blocking": 0
+  },
+  "uiOutstanding": [
+    "privacy-publication-approval",
+    "free-price-approval",
+    "medical-device-declaration-approval"
+  ],
+  "metadata": {
+    "locale": "en-US",
+    "path": "metadata/version/1.0.0/en-US.json",
+    "sha256": "e36f4680c7e071be0b0c1c25a9ee6f020b210fd01c27bf0ab10d2077bb5c54b2",
+    "inSync": true
+  },
+  "review": {
+    "contactName": "Iddo Gino",
+    "contactEmail": "support@healthmcp.cc",
+    "privatePhoneSaved": true,
+    "signInRequired": false,
+    "instructionsSaved": true
+  },
+  "availability": {
+    "selectedTerritories": 175,
+    "availableInNewTerritories": true,
+    "macAvailable": false,
+    "visionAvailable": false,
+    "platformFlagsVerifiedAfterReload": true,
+    "downloadPriceSaved": false
+  },
+  "screenshots": {
+    "setId": "be6c7386-d687-4657-ade5-920b71d38de2",
+    "screenshots": [
+      {
+        "id": "e78a5718-a24d-4b15-942b-d6dd80f18501",
+        "file": "01-your-health-your-agents.png",
+        "size": 729108,
+        "md5": "8ae60a40f93f73323e2bcd6b05a09ea5",
+        "sha256": "15d689754660306709563d438bfe5102bcc297e35c1ce6e0e27fb4ca4fa2f003",
+        "state": "COMPLETE"
+      },
+      {
+        "id": "7e7596dc-52ae-476b-9d69-d4f8509264c3",
+        "file": "02-recent-data-first.png",
+        "size": 714238,
+        "md5": "c32e767a00ad7aa554ff938a01a811bc",
+        "sha256": "242375b62ca38b9b3ffb8a2a6e2a27306b89166420953e8f2f8bd29ddd81898f",
+        "state": "COMPLETE"
+      },
+      {
+        "id": "ceb353cb-f8e7-42c0-a87c-a9995158619e",
+        "file": "03-choose-what-you-share.png",
+        "size": 839145,
+        "md5": "7393d0ef7b8485bf4a840953e3dd0928",
+        "sha256": "2955e6124bdb65fc49ccdeb034dc4bb650e68539a9b6b7d45ed35e14ec7d4957",
+        "state": "COMPLETE"
+      },
+      {
+        "id": "57c5f0c7-4d21-4192-866f-c4705e41eb75",
+        "file": "04-approve-every-connection.png",
+        "size": 685109,
+        "md5": "f5057d1bcd0bde7176223e861b78585a",
+        "sha256": "105674594b772b7d988b9eca7236836b02c38926342afbbc2c079823d98e9ee0",
+        "state": "COMPLETE"
+      },
+      {
+        "id": "d0f97742-8b35-44eb-b1d5-0de1a4c46167",
+        "file": "05-your-key-stays-yours.png",
+        "size": 764646,
+        "md5": "07482f0d4eb2b7f27739faa9f5aadc69",
+        "sha256": "c6b35e73760bdc1ff35f8a7f45f7400bc502d23f0fda396e8f87f2057a973a79",
+        "state": "COMPLETE"
+      }
+    ]
+  },
+  "screenshotArchive": {
+    "path": "artifacts/appstore-listing-2026-09-09/HealthMCP-AppStore-Screenshots.zip",
+    "size": 4096602,
+    "sha256": "7ba84c9c03311a7c07ea404aa9dc529655d8360d704ac1e3e96ce8a11aa740d4"
+  },
+  "appPrivacy": {
+    "published": false,
+    "answersSaved": true,
+    "categories": [
+      "Health",
+      "Fitness",
+      "Precise Location",
+      "Sensitive Info",
+      "User ID",
+      "Device ID",
+      "Other Diagnostic Data"
+    ],
+    "purpose": "App Functionality",
+    "linked": true,
+    "tracking": false,
+    "approvalPending": true
+  },
+  "medicalDeviceDeclaration": {
+    "saved": false,
+    "proposedAnswer": false,
+    "ownerConfirmationPending": true
+  },
+  "business": {
+    "freeAppsAgreement": "ACTIVE",
+    "paidAppsAgreement": "ACTIVE",
+    "digitalServicesAct": "ACTIVE",
+    "existingAppTraderStatus": "NON_TRADER",
+    "businessClassificationChanged": false,
+    "legalEntityEligibilityVerified": false
+  },
+  "site": {
+    "cloudflareVersion": "af520516-2f57-4160-bbe8-279454650886",
+    "typecheckPassed": true,
+    "buildPassed": true,
+    "contactsVerified": [
+      {
+        "path": "/support",
+        "httpSuccess": true,
+        "expectedContactsPresent": true
+      },
+      {
+        "path": "/privacy",
+        "httpSuccess": true,
+        "expectedContactsPresent": true
+      }
+    ],
+    "mailboxesOwnerConfirmed": true,
+    "googleMXVerified": true,
+    "inboundEmailIndependentlyTested": false
+  },
+  "iosBinaryChanged": false,
+  "nativeOrBackendTestsRerun": false,
+  "priorAcceptanceReport": "docs/appstore-readiness-2026-09-09.md"
+}

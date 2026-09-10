@@ -1,5 +1,7 @@
 # App Store submission assessment — September 9, 2026
 
+**Later setup update:** [Submission preparation](appstore-submission-prep-2026-09-09.md) records the subsequent screenshot upload, metadata and review contact, worldwide availability, support-email setup, and current approval requirements. The assessment below preserves the evidence from the earlier readiness run; its ASC setup findings are superseded by that update. Its product acceptance and policy questions remain open unless explicitly resolved there.
+
 **Recommendation: finish the submission setup and the remaining device/client checks before submitting build 13.** The current automated checks are clean, but App Store Connect still reports two blocking setup errors. App Privacy publication is unverified, and the published support address has no MX records. There is no recorded full historical backfill/background validation or named-assistant acceptance run for this release.
 
 This assessment covers **Health MCP: Private Sync**, version **1.0.0 (13)**, app `6809625249`, build `83c7d5c4-0145-4d2b-addf-9ae37a315691`, and prepared version `5806847e-2cd2-47c1-a26f-be83e82453f4`. No application code, production service, distribution scope, or submission state changed during this assessment.
