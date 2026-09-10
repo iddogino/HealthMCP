@@ -1,5 +1,7 @@
 # App Store submission — September 10, 2026
 
+Update: the original build-14 submission below was replaced by [build 17 at 14:09 PDT](appstore-build-17-2026-09-10.md), which is now Waiting for Review.
+
 **Health MCP: Private Sync 1.0.0 (14) is submitted and Waiting for Review.** Apple accepted the submission at 09:23:52 PDT on September 10, 2026. Release remains manual after approval; the app has not been released.
 
 [Open the submitted version](https://appstoreconnect.apple.com/apps/6809625249/distribution/ios/version/inflight).

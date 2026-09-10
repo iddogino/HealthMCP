@@ -1,0 +1,57 @@
+{
+  "checkedAtUTC": "2026-09-10T21:10:40.540719+00:00",
+  "appId": "6809625249",
+  "appName": "Health MCP: Private Sync",
+  "version": "1.0.0",
+  "buildNumber": "17",
+  "buildId": "6df882b2-9f09-45e3-962c-4d798f39d0e7",
+  "versionId": "5806847e-2cd2-47c1-a26f-be83e82453f4",
+  "reviewSubmissionId": "1192d1b5-cc61-4908-a61a-696758cddbcb",
+  "reviewState": "WAITING_FOR_REVIEW",
+  "versionState": "WAITING_FOR_REVIEW",
+  "submittedDate": "2026-09-10T21:09:18.931Z",
+  "submitted": true,
+  "released": false,
+  "releaseType": "MANUAL",
+  "replacedBuild": {
+    "number": "14",
+    "id": "9db5eadd-b05c-4d65-8f9b-c4d83de8214a",
+    "submissionId": "d2b17e81-c272-4e1b-bb33-fd4a18217344",
+    "cancellationConfirmed": true,
+    "previousPacketFinalState": "COMPLETE"
+  },
+  "buildProcessing": "VALID",
+  "buildAudience": "APP_STORE_ELIGIBLE",
+  "apiValidation": {
+    "errors": 0,
+    "warnings": 0,
+    "infos": 2,
+    "blocking": 0
+  },
+  "ipa": {
+    "path": "artifacts/HealthMCP-17.ipa",
+    "sha256": "4d37ff56f725bf0d0705e570670ad577f291906a431208bd9c18ed98ebeedc00",
+    "sizeBytes": 3012723,
+    "info": {
+      "CFBundleVersion": "17",
+      "CFBundleShortVersionString": "1.0.0",
+      "CFBundleIdentifier": "cc.healthmcp.app",
+      "MinimumOSVersion": "18.0",
+      "UIDeviceFamily": [
+        1
+      ],
+      "ITSAppUsesNonExemptEncryption": false,
+      "CFBundleIconName": null
+    },
+    "signatureVerified": true,
+    "distributionEntitlementsVerified": true
+  },
+  "archive": "artifacts/HealthMCP-17-fixes.xcarchive",
+  "sourceCommit": "edda2b4",
+  "sourceChangedThisTurn": false,
+  "functionalValidation": "docs/evidence/release-fixes-2026-09-10.json",
+  "physicalDeviceLimit": "Build 17 installed previously; device disconnected before launch verification. This submission upgrade did not repeat device tests.",
+  "metadataScreenshotsPricingPrivacyAndMedicalDeclarationChanged": false,
+  "privacyPublicationEvidence": "docs/evidence/privacy-publication-verification-2026-09-10.json",
+  "artifactsDirectory": "artifacts/asc-build-17-2026-09-10"
+}
