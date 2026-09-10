@@ -1,13 +1,14 @@
 import type {AuthRequest} from '@cloudflare/workers-oauth-provider';
-import {b64url, parseJSON, rateLimit, sha256} from './security';
+import {b64url, parseJSON, sha256} from './security';
+import {durableRateLimit} from './rate-limits';
 import {type Env, type User, HttpError, json, now} from './types';
 interface Pairing {id:string;code:string;browser_hash:string;oauth_request:string;client_name:string;redirect_host:string;expires_at:number;user_id:string|null;status:string;redirect_to:string|null;completion_attempts:number}
 const escape=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const cookieName='__Host-healthmcp_pair';
 function cookie(request:Request) {return request.headers.get('cookie')?.split(';').map(s=>s.trim()).find(s=>s.startsWith(cookieName+'='))?.slice(cookieName.length+1);}
 export async function authorize(request:Request,env:Env) {
-  await rateLimit(env,'authorize:global',600,3600);
-  await rateLimit(env,'authorize:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
+  await durableRateLimit(env,'authorize:global',600,3600);
+  await durableRateLimit(env,'authorize:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
   let auth:AuthRequest;
   try {auth=await env.OAUTH_PROVIDER.parseAuthRequest(request);} catch {throw new HttpError(400,'Invalid OAuth request. Return to your agent and start again.');}
   if (!auth.codeChallenge || auth.codeChallengeMethod!=='S256' || auth.responseType!=='code') throw new HttpError(400,'S256 PKCE is required');
@@ -54,7 +55,7 @@ export async function pollPairing(request:Request,env:Env,body:string) {
   }
 }
 export async function pairDevice(env:Env,user:User,body:string,approve:boolean) {
-  await rateLimit(env,`pair:${user.id}`,10,300);
+  await durableRateLimit(env,`pair:${user.id}`,10,300);
   const {code,pairing_id}=parseJSON<{code:string;pairing_id?:string}>(body);
   if (typeof code!=='string' || !/^\d{6}$/.test(code)) throw new HttpError(400,'Enter the six-digit pairing code');
   const pairing=await env.DB.prepare("SELECT * FROM pairings WHERE code=? AND expires_at>? AND status='pending'").bind(code,now()).first<Pairing>();

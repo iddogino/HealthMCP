@@ -137,9 +137,9 @@ test('a failed background cleanup remains durable for the scheduled sweeper',asy
   f.clearFaults();f.db.prepare('UPDATE storage_objects SET created_at=0').run();await collectGarbage(f.env);
   assert.equal(f.objects.size,1);assert.equal(stored(f),envelope(2));
 });
-test('batched admission enforces both write limits before any object storage write',async()=>{
-  for(const setting of ['MAX_USER_WRITES_PER_MINUTE','MAX_GLOBAL_WRITES_PER_MINUTE'] as const) {
-    const f=fixture();f.env[setting]='1';
+test('native admission enforces both upload limits before any object storage write',async()=>{
+  for(const binding of ['UPLOAD_USER_LIMITER','UPLOAD_GLOBAL_LIMITER'] as const) {
+    const f=fixture();f.throttles.setLimit(binding,1);
     await upload(request(),f.env,f.user(),envelope());
     await assert.rejects(upload(request('sleep','2026-09-01'),f.env,f.user(),envelope()),(error:any)=>error.status===429);
     assert.equal(f.objects.size,1);assert.equal(count(f,'chunks'),1);

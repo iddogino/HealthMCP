@@ -1,14 +1,17 @@
 import {DatabaseSync, type SQLInputValue} from 'node:sqlite';
 import {readFileSync,readdirSync} from 'node:fs';
 import type {Env,User} from '../../apps/worker/src/types';
+import {nativeRateLimitFixture} from './native-rate-limit-fixture';
 export function deferred() { let resolve!:()=>void; const promise=new Promise<void>(r=>{resolve=r;});return {promise,resolve}; }
 export function fixture() {
   const db=new DatabaseSync(':memory:');
+  const executedSQL:string[]=[],throttles=nativeRateLimitFixture();
   for(const name of readdirSync('apps/worker/migrations').filter(n=>n.endsWith('.sql')).sort()) db.exec(readFileSync('apps/worker/migrations/'+name,'utf8'));
   let fail:(sql:string)=>boolean=()=>false, lostCommit:string|undefined;
   function statement(sql:string) {
     let args:SQLInputValue[]=[];
     const execute=()=>{
+      executedSQL.push(sql);
       if(fail(sql)) throw new Error('Injected D1 failure');
       const prepared=db.prepare(sql);
       if(prepared.columns().length) {
@@ -19,8 +22,8 @@ export function fixture() {
     };
     const result={sql,bind(...values:SQLInputValue[]) {args=values;return result;},execute,
       async run(){return execute();},
-      async first(){if(fail(sql)) throw new Error('Injected D1 failure');return db.prepare(sql).get(...args)??null;},
-      async all(){return {results:db.prepare(sql).all(...args),success:true};}};
+      async first(){executedSQL.push(sql);if(fail(sql)) throw new Error('Injected D1 failure');return db.prepare(sql).get(...args)??null;},
+      async all(){executedSQL.push(sql);if(fail(sql))throw new Error('Injected D1 failure');return {results:db.prepare(sql).all(...args),success:true};}};
     return result;
   }
   const DB={prepare:statement,async batch(statements:ReturnType<typeof statement>[]) {
@@ -40,8 +43,8 @@ export function fixture() {
   };
   db.prepare('INSERT INTO users(id,device_pubkey,created_at) VALUES(?,?,?)').run('u_00000000-0000-4000-8000-000000000099','synthetic-public-key',Math.floor(Date.now()/1000));
   const user=()=>db.prepare('SELECT * FROM users LIMIT 1').get() as unknown as User;
-  const env={DB,BLOBS,PUBLIC_ORIGIN:'https://test.invalid',BLOB_SIGNING_SECRET:'public-synthetic-fixture-secret-0123456789',OAUTH_PROVIDER:{listUserGrants:async()=>({items:[]}),revokeGrant:async()=>{}}} as unknown as Env;
-  return {db,env,user,objects,failOnce(pattern:string){fail=sql=>{if(!sql.includes(pattern))return false;fail=()=>false;return true;};},failAlways(pattern:string){fail=sql=>sql.includes(pattern);},clearFaults(){fail=()=>false;failDelete=false;},loseNextCommit(pattern='INSERT INTO chunks'){lostCommit=pattern;},setBeforePut(fn:typeof beforePut){beforePut=fn;},setBeforeDelete(fn:typeof beforeDelete){beforeDelete=fn;},failDeletes(){failDelete=true;}};
+  const env={DB,BLOBS,...throttles.bindings,PUBLIC_ORIGIN:'https://test.invalid',BLOB_SIGNING_SECRET:'public-synthetic-fixture-secret-0123456789',OAUTH_PROVIDER:{listUserGrants:async()=>({items:[]}),revokeGrant:async()=>{}}} as unknown as Env;
+  return {db,env,user,objects,executedSQL,throttles,failOnce(pattern:string){fail=sql=>{if(!sql.includes(pattern))return false;fail=()=>false;return true;};},failAlways(pattern:string){fail=sql=>sql.includes(pattern);},clearFaults(){fail=()=>false;failDelete=false;},loseNextCommit(pattern='INSERT INTO chunks'){lostCommit=pattern;},setBeforePut(fn:typeof beforePut){beforePut=fn;},setBeforeDelete(fn:typeof beforeDelete){beforeDelete=fn;},failDeletes(){failDelete=true;}};
 }
 export const envelope=(byte=1)=>JSON.stringify({v:1,alg:'A256GCM',kdf:'sha256',iv:Buffer.alloc(12,byte).toString('base64'),ct:Buffer.alloc(32,byte).toString('base64')});
 export const record='2026-09-01/00000000-0000-4000-8000-000000000001';

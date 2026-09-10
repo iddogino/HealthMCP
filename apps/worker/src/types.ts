@@ -1,8 +1,9 @@
 import type {OAuthHelpers} from '@cloudflare/workers-oauth-provider';
-export interface Env {
+import type {NativeRateLimitBindings} from './rate-limits';
+export interface Env extends NativeRateLimitBindings {
   MAX_USER_BYTES?: string; MAX_USER_OBJECTS?: string;
   MAX_GLOBAL_BYTES?: string; MAX_GLOBAL_OBJECTS?: string;
-  MAX_ACCOUNTS?: string; MAX_USER_WRITES_PER_MINUTE?: string; MAX_GLOBAL_WRITES_PER_MINUTE?: string;
+  MAX_ACCOUNTS?: string;
   DB: D1Database;
   BLOBS: R2Bucket;
   OAUTH_KV: KVNamespace;

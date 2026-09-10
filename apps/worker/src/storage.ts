@@ -1,6 +1,7 @@
 import {objectPath, SERIES, validDay, validateEnvelope, validatePeriod} from '../../../packages/protocol/index';
-import {b64url, bytes, hmac, unbase64, verifyHmac, parseJSON, rateLimit, rateLimitStatement, checkRateLimit} from './security';
-import {storageLimits,limit} from './limits';
+import {b64url, bytes, hmac, unbase64, verifyHmac, parseJSON} from './security';
+import {storageLimits} from './limits';
+import {limitRequests,durableRateLimit} from './rate-limits';
 import {type AuthProps, type Env, type User, HttpError, json, now} from './types';
 export const physicalKey = (user:User, path:string) => `${user.id}/g${user.cache_generation}/${path.slice(user.id.length+1)}.enc`;
 type StoredObject = {blob_key:string;state:string};
@@ -44,15 +45,12 @@ export async function collectGarbage(env:Env) {
 export async function upload(request:Request,env:Env,user:User,body:string,ctx?:Pick<ExecutionContext,'waitUntil'>) {
   const url=new URL(request.url), series=url.searchParams.get('series')??'', period=url.searchParams.get('period')??'';
   if (!validatePeriod(series,period)) throw new HttpError(400,'Unknown series or invalid period');
+  await limitRequests(env,'upload',user.id);
   const path=objectPath(user.id,series,period), logical=path+'.enc';
-  const [userLimit,globalLimit,cache,existing]=await env.DB.batch([
-    rateLimitStatement(env,`writes:${user.id}`,60),
-    rateLimitStatement(env,'writes:global',60),
+  const [cache,existing]=await env.DB.batch([
     unchangedCache(env,user),
     env.DB.prepare('SELECT * FROM chunks WHERE user_id=? AND object_key=? AND generation=?').bind(user.id,logical,user.cache_generation)
   ]);
-  checkRateLimit(userLimit,limit(env,'MAX_USER_WRITES_PER_MINUTE',600),60);
-  checkRateLimit(globalLimit,limit(env,'MAX_GLOBAL_WRITES_PER_MINUTE',6000),60);
   if(!cache.results.length) throw new HttpError(409,'Privacy settings changed; restart sync');
   const previous=existing.results[0] as Chunk|undefined;
   if (request.method==='DELETE') {
@@ -160,8 +158,7 @@ export async function blob(request:Request,env:Env) {
   if (!Number.isInteger(data.e) || data.e<=now() || data.e>now()+601 || typeof data.p!=='string' || !data.p.startsWith(data.u+'/')) throw new HttpError(403,'Expired download link');
   const user=await env.DB.prepare(`SELECT users.* FROM users JOIN connections ON connections.user_id=users.id WHERE users.id=? AND connections.id=? AND connections.revoked_at IS NULL AND users.state='active'`).bind(data.u,data.c).first<User>();
   if (!user || user.cache_generation!==data.g) throw new HttpError(403,'Download access revoked');
-  await rateLimit(env,`download:${user.id}`,1200,60);
-  await rateLimit(env,'download:global',12000,60);
+  await limitRequests(env,'download',user.id);
   const chunk=await env.DB.prepare('SELECT blob_key FROM chunks WHERE user_id=? AND object_key=? AND generation=?').bind(user.id,data.p+'.enc',data.g).first<{blob_key:string}>();
   const object=chunk?await env.BLOBS.get(chunk.blob_key):null;
   if (!object) throw new HttpError(404,'Chunk not found');
@@ -189,7 +186,7 @@ export async function resetCache(env:Env,user:User,deleteAccount=false,operation
   if(user.state==='deleted') return json({deleted:true,reset:false});
   if(operationID && !/^[A-Za-z0-9-]{16,80}$/.test(operationID)) throw new HttpError(400,'Invalid cleanup operation');
   if(operationID && await env.DB.prepare('SELECT 1 FROM cache_operations WHERE user_id=? AND operation_id=?').bind(user.id,operationID).first()) return json({deleted:false,reset:true});
-  if(!deleteAccount && user.state==='active') await rateLimit(env,`reset:${user.id}`,5,3600);
+  if(!deleteAccount && user.state==='active') await durableRateLimit(env,`reset:${user.id}`,5,3600);
   const gate=await env.DB.prepare("UPDATE users SET state='resetting',pending_sync_at=NULL,privacy_revision=privacy_revision+1 WHERE id=? AND cache_generation=?").bind(user.id,user.cache_generation).run();
   if(!gate.meta.changes) {
     if(deleteAccount && await env.DB.prepare('SELECT 1 FROM account_deletions WHERE user_id=?').bind(user.id).first()) return json({deleted:true,reset:false});

@@ -29,6 +29,16 @@
       "id": "cb95c9974c6d4d5496efed51a3ca90a7"
     }
   ],
+  "ratelimits": [
+    {"name":"DEVICE_USER_LIMITER","namespace_id":"1680962501","simple":{"limit":1200,"period":60}},
+    {"name":"DEVICE_GLOBAL_LIMITER","namespace_id":"1680962502","simple":{"limit":12000,"period":60}},
+    {"name":"UPLOAD_USER_LIMITER","namespace_id":"1680962503","simple":{"limit":600,"period":60}},
+    {"name":"UPLOAD_GLOBAL_LIMITER","namespace_id":"1680962504","simple":{"limit":6000,"period":60}},
+    {"name":"MCP_USER_LIMITER","namespace_id":"1680962505","simple":{"limit":300,"period":60}},
+    {"name":"MCP_GLOBAL_LIMITER","namespace_id":"1680962506","simple":{"limit":3000,"period":60}},
+    {"name":"DOWNLOAD_USER_LIMITER","namespace_id":"1680962507","simple":{"limit":1200,"period":60}},
+    {"name":"DOWNLOAD_GLOBAL_LIMITER","namespace_id":"1680962508","simple":{"limit":12000,"period":60}}
+  ],
   "vars": {
     "PUBLIC_ORIGIN": "http://localhost:8787",
     "APP_TEAM_ID": "HL9SP7TJ3J",

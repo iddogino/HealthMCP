@@ -1,5 +1,6 @@
 import {OAuthProvider} from '@cloudflare/workers-oauth-provider';
-import {authenticateDevice,parseJSON,rateLimit,readBody,verifySignature} from './security';
+import {authenticateDevice,parseJSON,readBody,verifySignature} from './security';
+import {durableRateLimit} from './rate-limits';
 import {authorize,pairDevice,pollPairing} from './pairing';
 import {blob,resetCache,updateSeries,upload,deleteSeries,updateCoverage} from './storage';
 import {admitDevice} from './limits';
@@ -22,11 +23,11 @@ async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Respons
   if(!path.startsWith('/v1/')) throw new HttpError(404,'Not found');
   const body=await readBody(request,path==='/v1/upload'?undefined:64*1024);
   if(path==='/v1/register' && request.method==='POST') {
-    await rateLimit(env,'register:'+(request.headers.get('cf-connecting-ip')??'local'),20,3600);
+    await durableRateLimit(env,'register:'+(request.headers.get('cf-connecting-ip')??'local'),20,3600);
     const data=parseJSON<{device_pubkey:string}>(body);
     if(typeof data.device_pubkey!=='string' || data.device_pubkey.length>100) throw new HttpError(400,'P-256 public key required');
     await verifySignature(request,body,data.device_pubkey);
-    await rateLimit(env,'register:global',200,86400);
+    await durableRateLimit(env,'register:global',200,86400);
     const {user}=await admitDevice(env,data.device_pubkey,'u_'+crypto.randomUUID(),now());
     return json(user,201);
   }
@@ -83,8 +84,8 @@ export default {
       if(request.method==='OPTIONS') response=new Response(null,{status:204});
       else {
         if(url.pathname==='/register' && request.method==='POST') {
-          await rateLimit(env,'dcr:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
-          await rateLimit(env,'dcr:global',200,86400);
+          await durableRateLimit(env,'dcr:'+(request.headers.get('cf-connecting-ip')??'local'),30,3600);
+          await durableRateLimit(env,'dcr:global',200,86400);
           const slots=await env.DB.prepare("INSERT INTO admission_counters(name,count) VALUES('oauth_clients',1) ON CONFLICT(name) DO UPDATE SET count=count+1 WHERE count<10000 RETURNING count").first();
           if(!slots) throw new HttpError(503,'Client registration is at capacity. Contact support@healthmcp.cc.');
         }

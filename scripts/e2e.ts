@@ -95,7 +95,14 @@ try {
   assert.equal(await pending(),null);passed('Key-check and profile uploads preserve the push fallback until health data arrives');
   await primary.call('POST','/v1/sync/complete',{});
   assert.equal(resultData(await client.callTool({name:'request_sync',arguments:{}})).push_status,'already_requested');passed('Sync request throttle survives completed uploads');
-  const refresh=await fetch(base+'/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:auth.refresh_token,client_id:auth.clientId,resource:base+'/mcp'})});assert.equal(refresh.status,200);passed('OAuth refresh-token flow');
+  const refresh=await fetch(base+'/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:auth.refresh_token,client_id:auth.clientId,resource:base+'/mcp'})});
+  // Error responses contain public OAuth error codes/descriptions; never print
+  // the successful response, which contains the account's access/refresh tokens.
+  if(refresh.status!==200) {
+    const error=await refresh.json() as {error?:string;error_description?:string};
+    assert.fail(`OAuth refresh returned ${refresh.status}: ${error.error} (${error.error_description})`);
+  }
+  passed('OAuth refresh-token flow');
   await primary.call('DELETE','/v1/upload?series=steps&period=2026-09-01');assert.equal((await fetch(chunk.url)).status,404);passed('HealthKit deletion propagation');
   assert.equal((await primary.call('DELETE','/v1/series?series=body_mass')).status,200);
   assert.equal(resultData(await client.callTool({name:'get_samples',arguments:{series:'body_mass',start:'2026-09-01',end:'2026-09-30'}})).chunks.length,0);

@@ -70,9 +70,27 @@ Default limits (positive integer Worker vars can override them):
 | Account encrypted storage | 2 GiB / 500,000 objects | `MAX_USER_BYTES`, `MAX_USER_OBJECTS` |
 | Global physical storage | 100 GiB / 5,000,000 objects | `MAX_GLOBAL_BYTES`, `MAX_GLOBAL_OBJECTS` |
 | Active accounts | 1,000 | `MAX_ACCOUNTS` |
-| Upload/delete-chunk requests per minute | 600/account; 6,000 global | `MAX_USER_WRITES_PER_MINUTE`, `MAX_GLOBAL_WRITES_PER_MINUTE` |
 
-Additional device, MCP, download, registration, OAuth-client, and pairing limits apply. Storage exhaustion returns 507 without accepting a new upload; throttles return 429 with Retry-After. Account/series cleanup stays available at storage capacity. No device attestation is claimed. These controls bound admitted application work but do not cap all Cloudflare charges or replace platform DDoS protection.
+Storage exhaustion returns 507 without accepting a new upload. Account/series cleanup stays available at storage capacity. No device attestation is claimed. These controls bound admitted application work but do not cap all Cloudflare charges or replace platform DDoS protection.
+
+## Native request throttling
+
+Routine request throttles use [Cloudflare's native rate-limit bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/). Configure each binding's `simple.limit` in `apps/worker/wrangler.jsonc`; all use a 60-second period. Mirror the values in `wrangler.local.json` for local validation. Namespace IDs are stable, unique within the account, and separate between local and production configurations.
+
+| Request class | Per authenticated user / 60s | Shared key / 60s | Binding prefix |
+|---|---:|---:|---|
+| Signed device API | 1,200 | 12,000 | `DEVICE` |
+| Upload / delete chunk | 600 | 6,000 | `UPLOAD` |
+| MCP | 300 | 3,000 | `MCP` |
+| Encrypted download | 1,200 | 12,000 | `DOWNLOAD` |
+
+Each prefix has a `_USER_LIMITER` and `_GLOBAL_LIMITER` binding. User keys use the authenticated account ID; shared keys combine all users of that request class. The user check runs first, so a rejected user does not drain the shared budget. Uploads also count toward the device API limits. Exhausting an upload budget leaves status and account cleanup available, subject to the independent device API budget.
+
+Both native limits apply **per Cloudflare location**, including the key named “global.” Counters are permissive and eventually consistent; these are abuse throttles, not exact worldwide request quotas or billing caps. Storage quotas, account admission, nonce replay protection and privacy fences remain durable D1 operations. A native rejection returns HTTP 429 with `Retry-After: 60`. A missing or unavailable binding returns HTTP 503 with `Retry-After: 5`, without a D1 fallback or bypass.
+
+The longer-window controls remain in D1 because native bindings support only 10- or 60-second periods: device signup (20/IP/hour, 200/day shared), OAuth client registration (30/IP/hour, 200/day shared), pairing start (30/IP/hour, 600/hour shared), pairing preview/approval (10/user/5 minutes), and cache reset (5/user/hour). Agent-triggered sync keeps its separate one-per-15-minute durable timestamp. Existing minute-counter rows expire through scheduled cleanup; no schema migration is required.
+
+This removes four D1 counter write statements from each upload, reducing a new chunk upload's explicit SQL writes from nine to five. New chunks still use five D1 round trips; triggers maintain storage and cache accounting, and replacement cleanup runs separately. Run `npm test`, `npm run test:ratelimits` (isolated local workerd with small native budgets), and `npm run test:e2e` before deploying.
 
 Inspect `quota_usage` for physical consumption, `cache_usage` for published logical consumption, and `storage_maintenance` for the one-time migration scan. The regression deployment verified both counter sets against their source tables. Worker observability is enabled; billing alerts and an operator notification destination still need account-level configuration before widening distribution. Do not log private health values, signed download URLs, OAuth tokens, or health keys.
 
