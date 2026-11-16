@@ -9,6 +9,7 @@ import {handleMcp,revokeConnectionGrants,connectionActive} from './mcp';
 import {measureBindings} from './timing';
 import {withOAuthStorage,oauthStorageMode,oauthUnavailable} from './oauth-storage';
 import {type Env,type User,type AuthProps,HttpError,json,now} from './types';
+import {annotate,trackRequest,withEventContext,snapshotActivity} from './analytics';
 
 async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Response> {
   const url=new URL(request.url),path=url.pathname;
@@ -30,14 +31,19 @@ async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Respons
     await verifySignature(request,body,data.device_pubkey);
     await durableRateLimit(env,'register:global',200,86400);
     const {user}=await admitDevice(env,data.device_pubkey,'u_'+crypto.randomUUID(),now());
+    annotate({user:String((user as {id?:unknown}).id??'')});
     return json(user,201);
   }
   const user=await authenticateDevice(request,env,body);
+  annotate({user:user.id});
+  if(path==='/v1/upload') annotate({series:url.searchParams.get('series')??'',value:(body as string).length});
+  if(path==='/v1/series') annotate({series:request.method==='DELETE'?url.searchParams.get('series')??'':seriesOf(body)});
   if(path==='/v1/upload' && ['PUT','DELETE'].includes(request.method)) return upload(request,env,user,body,ctx);
   if(path==='/v1/chunk-coverage' && request.method==='PUT') return updateCoverage(env,user,body);
   if(path==='/v1/series' && request.method==='PUT') return updateSeries(env,user,body);
   if(path==='/v1/series' && request.method==='DELETE') return deleteSeries(env,user,url.searchParams.get('series')??'');
   if(path==='/v1/sync/complete' && request.method==='POST') {
+    if(user.pending_sync_at) annotate({tool:'requested',value:now()-user.pending_sync_at});
     const completed=await env.DB.prepare("UPDATE users SET last_synced_at=?,pending_sync_at=NULL WHERE id=? AND cache_generation=? AND privacy_revision=? AND state='active'").bind(now(),user.id,user.cache_generation,user.privacy_revision).run();
     if(!completed.meta.changes) throw new HttpError(409,'Cache changed; retry sync');
     return json({last_synced_at:now()});
@@ -57,7 +63,8 @@ async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Respons
   if(path==='/v1/connections' && request.method==='GET') return json({connections:(await env.DB.prepare('SELECT id,client_name,created_at FROM connections WHERE user_id=? AND revoked_at IS NULL ORDER BY created_at DESC').bind(user.id).all()).results});
   if(path.startsWith('/v1/connections/') && request.method==='DELETE') {
     const connectionId=path.slice('/v1/connections/'.length);
-    await env.DB.prepare('UPDATE connections SET revoked_at=? WHERE user_id=? AND id=?').bind(now(),user.id,connectionId).run();
+    const revoked=await env.DB.prepare('UPDATE connections SET revoked_at=? WHERE user_id=? AND id=? RETURNING client_name').bind(now(),user.id,connectionId).first<{client_name:string}>();
+    if(revoked) annotate({client:revoked.client_name});
     await revokeConnectionGrants(env,user.id,connectionId);
     return json({revoked:true});
   }
@@ -65,6 +72,7 @@ async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Respons
   if(path==='/v1/account' && request.method==='DELETE') return resetCache(env,user,true);
   throw new HttpError(404,'Not found');
 }
+const seriesOf=(body:string)=>{try {const s=JSON.parse(body).series; return typeof s==='string'?s.slice(0,60):'';} catch {return '';}};
 export const rejectRevokedRefresh=(env:Env)=>async({grantType,props}:{grantType:string;props:unknown})=>{
   const p=props as AuthProps;
   if(grantType==='refresh_token' && p?.connectionId && !await connectionActive(env,p.userId,p.connectionId)) throw new OAuthError('invalid_grant',{description:'This agent connection was revoked. Reconnect it in Health MCP.'});
@@ -78,8 +86,11 @@ const provider=(env:Env)=>new OAuthProvider<Env>({
   resourceMetadata:{resource:`${env.PUBLIC_ORIGIN}/mcp`,...(env.PUBLIC_ORIGIN.startsWith('https://')?{authorization_servers:[env.PUBLIC_ORIGIN]}:{}),scopes_supported:['health:read'],resource_name:'Health MCP'}
 });
 export default {
-  async fetch(request:Request,env:Env,ctx:ExecutionContext) {
-    const start=performance.now();
+  fetch(request:Request,env:Env,ctx:ExecutionContext) {return withEventContext(()=>handle(request,env,ctx));},
+  async scheduled(event:ScheduledController,env:Env,ctx:ExecutionContext) {ctx.waitUntil(scheduled(env));ctx.waitUntil(snapshotActivity(env,event.scheduledTime));}
+};
+async function handle(request:Request,env:Env,ctx:ExecutionContext) {
+    const start=performance.now(), events=env;
     const timing=request.headers.get('x-sync-metrics')==='1' && new URL(request.url).pathname.startsWith('/v1/')?measureBindings(env):undefined;
     if(timing) env=timing.env;
     let response:Response;
@@ -103,6 +114,7 @@ export default {
     } catch(error) {
       response=json({error:error instanceof HttpError?error.message:'The request could not be completed'},error instanceof HttpError?error.status:500);
       if(error instanceof HttpError && error.retryAfter) response.headers.set('Retry-After',String(error.retryAfter));
+      if(!(error instanceof HttpError)) annotate({status:'error_'+(error instanceof Error?error.name:'unknown')});
       if(!(error instanceof HttpError)) console.error('request_failed',env.PUBLIC_ORIGIN.startsWith('http://localhost')?String(error):error instanceof Error?error.name:'unknown');
     }
     const headers=new Headers(response.headers);
@@ -113,7 +125,6 @@ export default {
       headers.set('Access-Control-Allow-Headers','Authorization,Content-Type,MCP-Protocol-Version,Mcp-Session-Id');
       headers.set('Access-Control-Expose-Headers','WWW-Authenticate,Mcp-Session-Id');
     }
+    trackRequest(events,request,response.status,performance.now()-start);
     return new Response(response.body,{status:response.status,headers});
-  },
-  async scheduled(_event:ScheduledController,env:Env,ctx:ExecutionContext) {ctx.waitUntil(scheduled(env));}
-};
+}

@@ -2,6 +2,7 @@ import {collectGarbage,reconcileLegacyStorage} from './storage';
 import {cleanupOAuthState} from './oauth-storage';
 import {b64url,bytes,unbase64} from './security';
 import {type Env,type User,now} from './types';
+import {trackEvent} from './analytics';
 const tokens=new Map<string,{token:string;expires:number}>();
 async function jwt(env:Env,sandbox:boolean) {
   const keyId=sandbox?env.APNS_SANDBOX_KEY_ID:env.APNS_KEY_ID;
@@ -20,6 +21,11 @@ async function jwt(env:Env,sandbox:boolean) {
   tokens.set(keyId,entry); return token;
 }
 export async function sendPush(env:Env,user:User,visible=false):Promise<string> {
+  const status=await deliverPush(env,user,visible);
+  trackEvent(env,'push',{user:user.id,tool:visible?'visible':'background',status});
+  return status;
+}
+async function deliverPush(env:Env,user:User,visible:boolean):Promise<string> {
   if (!user.apns_token) return 'device_not_registered';
   if (!(user.apns_environment==='sandbox'?env.APNS_SANDBOX_PRIVATE_KEY:env.APNS_PRIVATE_KEY)) return 'push_not_configured';
   const endpoint=user.apns_environment==='sandbox'?'https://api.sandbox.push.apple.com':'https://api.push.apple.com';

@@ -10,6 +10,7 @@
   "d1_databases": [{"binding":"DB","database_name":"healthmcp-db","database_id":"48f345cb-4704-4095-bc2e-42853ea91dd4","migrations_dir":"migrations"}],
   "r2_buckets": [{"binding":"BLOBS","bucket_name":"healthmcp-encrypted"}],
   "kv_namespaces": [{"binding":"OAUTH_KV","id":"cb95c9974c6d4d5496efed51a3ca90a7"}],
+  "analytics_engine_datasets": [{"binding":"EVENTS","dataset":"healthmcp_events"}],
   "ratelimits": [
     {"name":"DEVICE_USER_LIMITER","namespace_id":"680962501","simple":{"limit":1200,"period":60}},
     {"name":"DEVICE_GLOBAL_LIMITER","namespace_id":"680962502","simple":{"limit":12000,"period":60}},

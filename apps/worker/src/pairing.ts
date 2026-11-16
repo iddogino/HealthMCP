@@ -2,6 +2,7 @@ import type {AuthRequest} from '@cloudflare/workers-oauth-provider';
 import {b64url, parseJSON, sha256} from './security';
 import {durableRateLimit} from './rate-limits';
 import {type Env, type User, HttpError, json, now} from './types';
+import {annotate} from './analytics';
 interface Pairing {id:string;code:string;browser_hash:string;oauth_request:string;client_name:string;redirect_host:string;expires_at:number;user_id:string|null;status:string;redirect_to:string|null;completion_attempts:number}
 const escape=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const cookieName='__Host-healthmcp_pair';
@@ -19,6 +20,7 @@ export async function authorize(request:Request,env:Env) {
   const id=crypto.randomUUID(), expires=now()+600;
   const code=(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).toString().padStart(6,'0');
   const name=(client.clientName??'Unnamed agent').slice(0,120), host=new URL(auth.redirectUri).host;
+  annotate({client:name});
   try {await env.DB.prepare('INSERT INTO pairings(id,code,browser_hash,oauth_request,client_name,redirect_host,expires_at) VALUES(?,?,?,?,?,?,?)').bind(id,code,await sha256(browserToken),JSON.stringify(auth),name,host,expires).run();}
   catch {throw new HttpError(503,'Please restart pairing');}
   const nonce=b64url(crypto.getRandomValues(new Uint8Array(16)));
@@ -32,6 +34,7 @@ export async function pollPairing(request:Request,env:Env,body:string) {
   if (!token || typeof id!=='string') throw new HttpError(403,'Pairing session missing');
   const pairing=await env.DB.prepare('SELECT * FROM pairings WHERE id=? AND browser_hash=?').bind(id,await sha256(token)).first<Pairing>();
   if (!pairing || pairing.expires_at<now()) throw new HttpError(410,'Pairing expired. Start again in your agent.');
+  annotate({client:pairing.client_name,user:pairing.user_id??undefined,status:pairing.status});
   if (pairing.redirect_to) return json({redirect_to:pairing.redirect_to});
   if (!['approved','completing'].includes(pairing.status) || !pairing.user_id) return json({status:pairing.status});
   if(pairing.completion_attempts>=5) throw new HttpError(410,'Connection could not finish. Start again in your agent.');
@@ -46,6 +49,7 @@ export async function pollPairing(request:Request,env:Env,body:string) {
     const result=await env.OAUTH_PROVIDER.completeAuthorization({request:auth,userId:pairing.user_id,metadata:{clientName:pairing.client_name,connectionId:pairing.id},scope:['health:read',...(auth.scope.includes('offline_access')?['offline_access']:[])],props:{userId:pairing.user_id,connectionId:pairing.id,scope:['health:read']},revokeExistingGrants:false});
     const saved=await env.DB.prepare("UPDATE pairings SET status='complete',redirect_to=?,completion_lease=NULL WHERE id=? AND status='completing' AND completion_lease=?").bind(result.redirectTo,id,lease).run();
     if(saved.meta.changes!==1) return json({status:'completing'});
+    annotate({status:'complete'});
     return json({redirect_to:result.redirectTo});
   } catch(error) {
     // A lost D1 response after a successful commit leaves 'complete' untouched.
@@ -60,6 +64,7 @@ export async function pairDevice(env:Env,user:User,body:string,approve:boolean) 
   if (typeof code!=='string' || !/^\d{6}$/.test(code)) throw new HttpError(400,'Enter the six-digit pairing code');
   const pairing=await env.DB.prepare("SELECT * FROM pairings WHERE code=? AND expires_at>? AND status='pending'").bind(code,now()).first<Pairing>();
   if (!pairing) throw new HttpError(404,'Pairing code not found or expired');
+  annotate({client:pairing.client_name});
   if (!approve) return json({pairing_id:pairing.id,client_name:pairing.client_name,redirect_host:pairing.redirect_host,expires_at:pairing.expires_at,scope:'Read encrypted health data'});
   if (pairing_id!==pairing.id) throw new HttpError(409,'Review this agent before approving');
   const auth=JSON.parse(pairing.oauth_request) as AuthRequest;
