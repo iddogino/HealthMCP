@@ -4,11 +4,11 @@ import type {Env} from './types';
 // Product analytics in the `healthmcp_events` Analytics Engine dataset (90-day retention).
 // Records only pseudonymous user ids, route/tool/series/agent names, statuses and counts:
 // never health values, chunk paths, keys, tokens, IPs or locations.
-//   index1  user id
+//   index1  <group>:<user id>; groups keep bursty sync traffic from sampling away rare MCP/tool events
 //   blob1 event  blob2 tool | MCP method  blob3 series  blob4 agent connection name  blob5 agent family
 //   blob6 status  blob7 user agent  blob8 route  blob9 MCP clientInfo name/version | iOS app build
 //   double1 value (range days | bytes | seconds)  double2 count  double3 latency ms  double4 HTTP status
-//   double5 data age in hours at query time (-1 unknown)
+//   double5 data age in hours at query time (-1 unknown)  blob10 user id
 export interface EventFields {user?:string;tool?:string;series?:string;client?:string;status?:string;version?:string;value?:number;count?:number;age?:number}
 const context=new AsyncLocalStorage<EventFields>();
 
@@ -54,12 +54,16 @@ export function routeName(method:string,path:string) {
   return ROUTES[`${method} ${path}`]??'other';
 }
 
+const GROUPS:Record<string,string>={register:'sync',upload:'sync',chunk_delete:'sync',series_update:'sync',series_delete:'sync',coverage_update:'sync',
+  sync_complete:'sync',status:'sync',apns:'sync',connections_list:'sync',cache_reset:'sync',account_delete:'sync',
+  mcp_request:'mcp',mcp_stream:'mcp',mcp_session_end:'mcp',tool_call:'tool',blob_download:'download',push:'push',agent_active_hour:'cron',user_day:'cron'};
+export const eventGroup=(event:string)=>GROUPS[event]??'oauth';
 function write(env:Env,event:string,fields:EventFields,request?:Request,extra:{route?:string;latency?:number;httpStatus?:number}={}) {
   try {
     const ua=request?.headers.get('user-agent')??null;
     env.EVENTS?.writeDataPoint({
-      indexes:[(fields.user??'').slice(0,96)],
-      blobs:[event,fields.tool??'',fields.series??'',(fields.client??'').slice(0,120),agentFamily(ua),fields.status??'',(ua??'').slice(0,120),extra.route??'',fields.version??appBuild(ua)??''],
+      indexes:[`${eventGroup(event)}:${(fields.user??'').slice(0,90)}`],
+      blobs:[event,fields.tool??'',fields.series??'',(fields.client??'').slice(0,120),agentFamily(ua),fields.status??'',(ua??'').slice(0,120),extra.route??'',fields.version??appBuild(ua)??'',(fields.user??'').slice(0,96)],
       doubles:[fields.value??0,fields.count??0,extra.latency??0,extra.httpStatus??0,fields.age??-1]
     });
   } catch {}
