@@ -136,3 +136,26 @@ test('migration freezes OAuth issuance but preserves existing access and fences 
   s.db.prepare('INSERT OR IGNORE INTO oauth_state(key,value,expires_at) VALUES(?,?,?)').run(key,snapshot.value,snapshot.expiration??null);
   assert.equal(await new OAuthStateStorage(s.env.DB,s.legacy.kv,'d1').get(key),null);
 });
+
+test('agent grants expire after 90 idle days: every refresh slides the expiry',async()=>{
+  const s=setup(),auth=await s.pair(),now=Math.floor(Date.now()/1000);
+  const row=()=>s.db.prepare("SELECT value,expires_at FROM oauth_state WHERE key LIKE 'grant:%' AND value IS NOT NULL").get() as {value:string;expires_at:number};
+  // Simulate a connection paired 85 days ago: 5 days left under the old fixed expiry.
+  const grant=JSON.parse(row().value);grant.expiresAt=now+5*86400;
+  s.db.prepare("UPDATE oauth_state SET value=?,expires_at=? WHERE key LIKE 'grant:%' AND value IS NOT NULL").run(JSON.stringify(grant),grant.expiresAt);
+  const refreshed=await s.refresh(auth.refresh_token,auth.clientId);
+  assert.equal(refreshed.status,200);
+  assert.equal((await refreshed.json() as {expires_in:number}).expires_in,3600,'access tokens keep their normal lifetime');
+  const after=row();
+  assert.ok(after.expires_at>=now+90*86400-5,'storage expiry slid to 90 days from last use');
+  assert.equal(JSON.parse(after.value).expiresAt,after.expires_at,'provider-visible expiry matches storage expiry');
+});
+
+test('sliding never touches pending authorizations or non-grant records',async()=>{
+  const {slideGrant}=await import('../apps/worker/src/oauth-storage');
+  const pending=JSON.stringify({id:'g',authCodeId:'x',expiresAt:100});
+  assert.deepEqual(slideGrant('grant:u:g',pending,700,100),[pending,700]);
+  assert.deepEqual(slideGrant('token:u:g:t','{"refreshTokenId":"r","expiresAt":1}',3700,100),['{"refreshTokenId":"r","expiresAt":1}',3700]);
+  const legacy=JSON.stringify({id:'g',refreshTokenId:'r'});
+  assert.deepEqual(slideGrant('grant:u:g',legacy,null,100),[legacy,null],'grants without expiry stay non-expiring');
+});

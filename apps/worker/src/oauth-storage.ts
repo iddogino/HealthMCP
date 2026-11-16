@@ -1,6 +1,17 @@
 import {OAuthError} from '@cloudflare/workers-oauth-provider';
 import type {Env} from './types';
 
+export const AGENT_IDLE_TTL=90*86400;
+// The provider fixes a grant's expiry at code exchange and forbids changing it on refresh.
+// Any write of an issued grant (exchange or refresh) means the agent is in use, so slide expiry to 90 idle days.
+export function slideGrant(key:string,value:string,expiration:number|null,now:number):[string,number|null] {
+  if(!key.startsWith('grant:')) return [value,expiration];
+  let grant:{refreshTokenId?:string;expiresAt?:number};
+  try {grant=JSON.parse(value);} catch {return [value,expiration];}
+  if(!grant.refreshTokenId || typeof grant.expiresAt!=='number' || grant.expiresAt>=now+AGENT_IDLE_TTL) return [value,expiration];
+  grant.expiresAt=now+AGENT_IDLE_TTL;
+  return [JSON.stringify(grant),Math.max(expiration??0,grant.expiresAt)];
+}
 const managed=(key:string)=>['client:','grant:','token:'].some(prefix=>key.startsWith(prefix));
 type Entry={value:string|null;expires_at:number|null;revision:number};
 type ListOptions={prefix?:string;limit?:number;cursor?:string};
@@ -33,7 +44,8 @@ export class OAuthStateStorage {
     if(!managed(key)) return this.legacy.put(key,value,options);
     if(this.mode==='migrating') throw new OAuthError('temporarily_unavailable',{description:'Authorization storage is being upgraded. Please retry shortly.',statusCode:503,headers:{'Retry-After':'60'}});
     if(typeof value!=='string'||options?.metadata!==undefined) throw new TypeError('Unsupported OAuth storage write');
-    const expiration=options?.expiration??(options?.expirationTtl!==undefined?this.clock()+options.expirationTtl:null);
+    let expiration=options?.expiration??(options?.expirationTtl!==undefined?this.clock()+options.expirationTtl:null);
+    [value,expiration]=slideGrant(key,value,expiration,this.clock());
     const revision=this.revisions.get(key);
     const grantKey=key.startsWith('token:')?'grant:'+key.split(':').slice(1,3).join(':'):null;
     const result=revision===undefined
