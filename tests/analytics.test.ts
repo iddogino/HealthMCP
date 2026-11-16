@@ -24,7 +24,9 @@ test('MCP tool calls record tool, series, range, result count, data age and agen
   assert.equal((await mcp(s,call('get_workouts',{start:'2026-09-01',end:'2026-09-07'}))).status,200);
   const tool=s.points.find(p=>p.blobs[0]==='tool_call')!;
   assert.deepEqual(tool.blobs.slice(0,6),['tool_call','get_workouts','workouts','Claude','claude','ok']);
-  assert.equal(tool.indexes[0],s.user.id);
+  assert.equal(tool.indexes[0],'tool:'+s.user.id);
+  assert.equal(tool.blobs[9],s.user.id);
+  assert.equal(s.points.find(p=>p.blobs[0]==='mcp_request')!.indexes[0],'mcp:'+s.user.id);
   assert.equal(tool.doubles[0],7);
   assert.equal(tool.doubles[1],1);
   assert.ok(tool.doubles[4]>=0 && tool.doubles[4]<1,'data age in hours since last upload');
@@ -70,11 +72,11 @@ test('hourly snapshot records live agents; daily snapshot records per-user state
   await snapshotActivity(s.f.env,Date.UTC(2026,10,16,13,1));
   assert.equal(s.points.length,0,'only runs on the hour');
   await snapshotActivity(s.f.env,Date.UTC(2026,10,16,13,0));
-  assert.deepEqual(s.points.map(p=>[p.blobs[0],p.blobs[3],p.indexes[0]]),[['agent_active_hour','Claude',s.user.id]]);
+  assert.deepEqual(s.points.map(p=>[p.blobs[0],p.blobs[3],p.blobs[9]]),[['agent_active_hour','Claude',s.user.id]]);
   s.points.length=0;
   await snapshotActivity(s.f.env,Date.UTC(2026,10,17,0,0));
   const day=s.points.find(p=>p.blobs[0]==='user_day')!;
-  assert.equal(day.indexes[0],s.user.id);
+  assert.equal(day.indexes[0],'cron:'+s.user.id);
   assert.equal(day.doubles[1],1,'active agent connections');
 });
 
