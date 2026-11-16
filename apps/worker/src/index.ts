@@ -1,11 +1,11 @@
-import {OAuthProvider} from '@cloudflare/workers-oauth-provider';
+import {OAuthProvider,OAuthError} from '@cloudflare/workers-oauth-provider';
 import {authenticateDevice,parseJSON,readBody,verifySignature} from './security';
 import {durableRateLimit} from './rate-limits';
 import {authorize,pairDevice,pollPairing} from './pairing';
 import {blob,resetCache,updateSeries,upload,deleteSeries,updateCoverage} from './storage';
 import {admitDevice} from './limits';
 import {scheduled} from './push';
-import {handleMcp} from './mcp';
+import {handleMcp,revokeConnectionGrants,connectionActive} from './mcp';
 import {measureBindings} from './timing';
 import {withOAuthStorage,oauthStorageMode,oauthUnavailable} from './oauth-storage';
 import {type Env,type User,type AuthProps,HttpError,json,now} from './types';
@@ -56,18 +56,25 @@ async function api(request:Request,env:Env,ctx:ExecutionContext):Promise<Respons
   if(['/v1/pair/preview','/v1/pair/approve'].includes(path) && request.method==='POST') return pairDevice(env,user,body,path.endsWith('approve'));
   if(path==='/v1/connections' && request.method==='GET') return json({connections:(await env.DB.prepare('SELECT id,client_name,created_at FROM connections WHERE user_id=? AND revoked_at IS NULL ORDER BY created_at DESC').bind(user.id).all()).results});
   if(path.startsWith('/v1/connections/') && request.method==='DELETE') {
-    await env.DB.prepare('UPDATE connections SET revoked_at=? WHERE user_id=? AND id=?').bind(now(),user.id,path.slice('/v1/connections/'.length)).run();
+    const connectionId=path.slice('/v1/connections/'.length);
+    await env.DB.prepare('UPDATE connections SET revoked_at=? WHERE user_id=? AND id=?').bind(now(),user.id,connectionId).run();
+    await revokeConnectionGrants(env,user.id,connectionId);
     return json({revoked:true});
   }
   if(path==='/v1/cache/reset' && request.method==='POST') return resetCache(env,user,false,parseJSON<{operation_id?:string}>(body||'{}').operation_id);
   if(path==='/v1/account' && request.method==='DELETE') return resetCache(env,user,true);
   throw new HttpError(404,'Not found');
 }
+export const rejectRevokedRefresh=(env:Env)=>async({grantType,props}:{grantType:string;props:unknown})=>{
+  const p=props as AuthProps;
+  if(grantType==='refresh_token' && p?.connectionId && !await connectionActive(env,p.userId,p.connectionId)) throw new OAuthError('invalid_grant',{description:'This agent connection was revoked. Reconnect it in Health MCP.'});
+};
 const provider=(env:Env)=>new OAuthProvider<Env>({
   apiRoute:'/mcp',apiHandler:{fetch:(request,env,ctx)=>handleMcp(request,env,ctx.props as AuthProps)},defaultHandler:{fetch:api},
   authorizeEndpoint:'/authorize',tokenEndpoint:'/token',clientRegistrationEndpoint:'/register',
   scopesSupported:['health:read','offline_access'],allowImplicitFlow:false,allowPlainPKCE:false,
   accessTokenTTL:3600,refreshTokenTTL:60*60*24*90,clientIdMetadataDocumentEnabled:true,
+  tokenExchangeCallback:rejectRevokedRefresh(env),
   resourceMetadata:{resource:`${env.PUBLIC_ORIGIN}/mcp`,...(env.PUBLIC_ORIGIN.startsWith('https://')?{authorization_servers:[env.PUBLIC_ORIGIN]}:{}),scopes_supported:['health:read'],resource_name:'Health MCP'}
 });
 export default {
