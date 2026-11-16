@@ -89,4 +89,6 @@ test('helpers classify agents and app builds; a missing binding never breaks req
   assert.equal(agentFamily('claude-code/2.1.321 (sdk-ts)'),'claude-code');
   assert.equal(appBuild('HealthMCP/17 CFNetwork/3896.200.61 Darwin/27.2.0'),'HealthMCP/17 darwin/27.2.0');
   assert.equal(appBuild('node'),undefined);
+  assert.equal(agentFamily('HealthMCP/17 CFNetwork/3896.200.61 Darwin/27.2.0'),'ios-app');
+  assert.equal(agentFamily('healthmcp-client/1.0'),'healthmcp-helper');
 });

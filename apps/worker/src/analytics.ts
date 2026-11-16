@@ -26,8 +26,8 @@ export function agentFamily(userAgent:string|null) {
   if(ua.includes('openai') || ua.includes('chatgpt')) return 'chatgpt';
   if(ua.includes('cursor')) return 'cursor';
   if(ua.includes('hermes')) return 'hermes';
-  if(ua.includes('healthmcp')) return 'healthmcp-helper';
   if(ua.includes('cfnetwork')) return 'ios-app';
+  if(ua.includes('healthmcp')) return 'healthmcp-helper';
   if(ua.includes('python')) return 'python';
   if(ua==='node' || ua.includes('undici') || ua.includes('node.js')) return 'node';
   if(ua.includes('curl')) return 'curl';
