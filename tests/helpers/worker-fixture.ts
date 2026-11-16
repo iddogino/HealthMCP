@@ -37,7 +37,7 @@ export function fixture() {
   const BLOBS={
     async head(key:string){return objects.has(key)?{key,size:Buffer.byteLength(objects.get(key)!)}:null;},
     async put(key:string,value:string){await beforePut?.(key);objects.set(key,value);return {key};},
-    async get(key:string){return objects.has(key)?{body:objects.get(key)}:null;},
+    async get(key:string){return objects.has(key)?{body:objects.get(key),size:Buffer.byteLength(objects.get(key)!)}:null;},
     async delete(keys:string|string[]){await beforeDelete?.();if(failDelete)throw new Error('Injected R2 deletion failure');for(const key of [keys].flat())objects.delete(key);},
     async list({prefix=''}:{prefix?:string}){return {objects:[...objects.keys()].filter(k=>k.startsWith(prefix)).map(key=>({key,size:Buffer.byteLength(objects.get(key)!),uploaded:new Date(0)})),truncated:false};}
   };

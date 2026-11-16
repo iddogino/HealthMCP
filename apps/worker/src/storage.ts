@@ -1,4 +1,5 @@
 import {objectPath, SERIES, validDay, validateEnvelope, validatePeriod} from '../../../packages/protocol/index';
+import {annotate} from './analytics';
 import {b64url, bytes, hmac, unbase64, verifyHmac, parseJSON} from './security';
 import {storageLimits} from './limits';
 import {limitRequests,durableRateLimit} from './rate-limits';
@@ -156,12 +157,15 @@ export async function blob(request:Request,env:Env) {
   let data:{u:string;p:string;g:number;c:string;e:number};
   try {data=JSON.parse(new TextDecoder().decode(unbase64(payload)));} catch {throw new HttpError(403,'Invalid download link');}
   if (!Number.isInteger(data.e) || data.e<=now() || data.e>now()+601 || typeof data.p!=='string' || !data.p.startsWith(data.u+'/')) throw new HttpError(403,'Expired download link');
-  const user=await env.DB.prepare(`SELECT users.* FROM users JOIN connections ON connections.user_id=users.id WHERE users.id=? AND connections.id=? AND connections.revoked_at IS NULL AND users.state='active'`).bind(data.u,data.c).first<User>();
+  annotate({user:data.u,series:data.p.split('/')[1]??''});
+  const user=await env.DB.prepare(`SELECT users.*,connections.client_name AS connection_client FROM users JOIN connections ON connections.user_id=users.id WHERE users.id=? AND connections.id=? AND connections.revoked_at IS NULL AND users.state='active'`).bind(data.u,data.c).first<User&{connection_client:string}>();
   if (!user || user.cache_generation!==data.g) throw new HttpError(403,'Download access revoked');
+  annotate({client:user.connection_client});
   await limitRequests(env,'download',user.id);
   const chunk=await env.DB.prepare('SELECT blob_key FROM chunks WHERE user_id=? AND object_key=? AND generation=?').bind(user.id,data.p+'.enc',data.g).first<{blob_key:string}>();
   const object=chunk?await env.BLOBS.get(chunk.blob_key):null;
   if (!object) throw new HttpError(404,'Chunk not found');
+  annotate({value:object.size});
   return new Response(object.body,{headers:{'Content-Type':'application/json','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 }
 export async function listSeries(env:Env,user:User,props:AuthProps) {

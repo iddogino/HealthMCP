@@ -18,12 +18,13 @@ export interface Env extends NativeRateLimitBindings {
   APNS_SANDBOX_PRIVATE_KEY?: string;
   APNS_TEAM_ID?: string;
   APNS_PRIVATE_KEY?: string;
+  EVENTS?: AnalyticsEngineDataset;
 }
 export interface User {
   privacy_revision: number;
   id: string; device_pubkey: string; created_at: number;
   apns_token: string | null; apns_environment: string;
-  last_sync_request_at:number|null; last_synced_at: number | null; cache_generation: number; state: string;
+  last_sync_request_at:number|null; last_upload_at?:number|null; last_synced_at: number | null; cache_generation: number; state: string;
   pending_sync_at: number | null; last_visible_push_at: number | null; last_push_status: string | null;
 }
 export interface AuthProps { userId: string; connectionId: string; scope: string[] }
