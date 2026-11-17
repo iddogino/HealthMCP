@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.iddogino/health-mcp",
+  "title": "Health MCP",
+  "description": "Encrypted Apple Health for MCP clients. Your key never leaves your iPhone.",
+  "repository": {
+    "url": "https://github.com/iddogino/HealthMCP",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.healthmcp.cc/mcp"
+    }
+  ]
+}
