@@ -1,0 +1,22 @@
+# Health MCP
+
+> Health MCP is a free iPhone app (iOS 18 or later) that brings Apple Health data to the AI assistants you choose over the Model Context Protocol (MCP). Each health file is compressed and encrypted with AES-256-GCM on the iPhone before upload, using a key derived from a private key that only the user holds. The service stores ciphertext and a small catalog; it never receives the decryption key.
+
+- App Store: https://apps.apple.com/app/health-mcp-private-sync/id6809625249
+- Remote MCP endpoint (encrypted, for trusted integrations): https://mcp.healthmcp.cc/mcp
+- Source code (MIT): https://github.com/iddogino/HealthMCP
+
+## How it works
+
+1. Choose which Apple Health data to sync on your iPhone and save your private key in a password manager. Health MCP reads Apple Health; it never writes to it.
+2. Export the trusted local client from the app (Settings → Export trusted client). It runs on your computer with Node.js 22+ and is added to your assistant as a local stdio MCP server. Pair it by approving a code in the app's Agents tab.
+3. Give the local client your key privately. It decrypts files on your computer; never paste the key into chat.
+
+Connections can be revoked, optional data groups disabled, the key rotated, or the account deleted from the app's Settings.
+
+## Pages
+
+- [Home](https://healthmcp.cc/): overview of the app and the privacy model
+- [Connect your assistant](https://healthmcp.cc/connect): step-by-step setup guide
+- [Privacy](https://healthmcp.cc/privacy): what is stored, encryption details, retention and deletion
+- [Support](https://healthmcp.cc/support): first sync, permissions, pairing, keys, notifications, storage limits
