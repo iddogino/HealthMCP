@@ -1,7 +1,15 @@
 import { ArrowDown, ArrowUpRight, Check, HeartPulse, KeyRound, LockKeyhole, Smartphone } from 'lucide-react';
 
+import type { Metadata } from 'next';
+import { APP_STORE_URL } from '@/lib/seo';
+
+export const metadata:Metadata={alternates:{canonical:'/'}};
+
+const jsonLd={'@context':'https://schema.org','@graph':[{'@type':'Organization','@id':'https://healthmcp.cc/#org','name':'Health MCP','url':'https://healthmcp.cc/','email':'privacy@healthmcp.cc','founder':{'@type':'Person','name':'Iddo Gino'},'sameAs':['https://github.com/iddogino/HealthMCP',APP_STORE_URL]},{'@type':'WebSite','@id':'https://healthmcp.cc/#website','name':'Health MCP','url':'https://healthmcp.cc/','publisher':{'@id':'https://healthmcp.cc/#org'}},{'@type':'MobileApplication','name':'Health MCP: Private Sync','alternateName':'Health MCP','description':'Brings Apple Health data to the AI assistants you choose over the Model Context Protocol (MCP). Health files are encrypted on your iPhone with a private key that only you hold.','operatingSystem':'iOS 18.0 or later','applicationCategory':'HealthApplication','url':'https://healthmcp.cc/','installUrl':APP_STORE_URL,'image':'https://healthmcp.cc/ios-overview.png','offers':{'@type':'Offer','price':'0','priceCurrency':'USD'},'publisher':{'@id':'https://healthmcp.cc/#org'}}]};
+
 export default function Home() {
   return <main>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(jsonLd)}} />
     <section className="hero wrap">
       <div className="hero-copy">
         <p className="eyebrow"><span className="status-dot" /> PRIVATE HEALTH. PERSONAL AI.</p>

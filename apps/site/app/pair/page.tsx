@@ -1,1 +1,3 @@
+import type { Metadata } from 'next';
+export const metadata:Metadata={title:'Pair your assistant',robots:{index:false,follow:true}};
 export default function Pair(){return <main className="guide wrap"><p className="eyebrow">PAIR ON YOUR IPHONE</p><h1>Your approval<br/>makes the connection.</h1><p className="lead">Open Health MCP on your iPhone, go to Agents, and enter the six-digit code shown in your assistant’s authorization page.</p><p>Review the client name and callback destination, then approve. Leave the original authorization browser open to complete pairing.</p><a className="cta" href="/connect">Read the setup guide ↗</a></main>}
