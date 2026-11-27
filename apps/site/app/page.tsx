@@ -20,7 +20,7 @@ export default function Home() {
       </div>
       <div className="hero-visual" aria-label="Health MCP iPhone app preview">
         <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-        <figure className="phone"><img src="/ios-overview.png" width="1206" height="2622" alt="Health MCP app showing a completed sync, encrypted cache, and sync history with illustrative data" /></figure>
+        <figure className="phone"><img src="/ios-overview.webp" width="600" height="1304" fetchPriority="high" alt="Health MCP app showing a completed sync, encrypted cache, and sync history with illustrative data" /></figure>
         <div className="key-badge"><span className="key-badge-icon"><KeyRound size={22} /></span><div><strong>Only you hold the key.</strong><span>Health values stay encrypted in the cloud.</span></div></div>
         <p className="preview-note">Actual app. Illustrative sync data.</p>
       </div>
