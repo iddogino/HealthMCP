@@ -7,8 +7,8 @@ export default function Home() {
         <p className="eyebrow"><span className="status-dot" /> PRIVATE HEALTH. PERSONAL AI.</p>
         <h1>Your health.<br />Your context.<br /><span>Your key.</span></h1>
         <p className="hero-description">Bring your Apple Health data to the AI tools you choose. Encrypted on your iPhone. Opened only with your private key.</p>
-        <div className="hero-actions"><a className="cta" href="/connect">Connect your assistant <ArrowUpRight size={18} /></a><a className="text-link" href="#how-it-works">How it works <ArrowDown size={16} /></a></div>
-        <p className="availability">Built for iPhone · V1 private beta</p>
+        <div className="hero-actions"><a className="app-store-badge" href="https://apps.apple.com/app/health-mcp-private-sync/id6809625249" aria-label="Download Health MCP on the App Store"><img src="/app-store-badge.svg" width="120" height="40" alt="Download on the App Store" /></a><a className="cta" href="/connect">Connect your assistant <ArrowUpRight size={18} /></a><a className="text-link" href="#how-it-works">How it works <ArrowDown size={16} /></a></div>
+        <p className="availability">Free on the App Store · Requires iOS 18 or later</p>
       </div>
       <div className="hero-visual" aria-label="Health MCP iPhone app preview">
         <div className="orbit orbit-one" /><div className="orbit orbit-two" />
